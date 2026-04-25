@@ -70,9 +70,14 @@ const audiencesTool = {
     "  - append_contacts: add contacts (to + optional variables) to an audience",
     "  - update_contact / remove_contact: edit or remove a single contact within an audience",
     "",
+    "Phone format: `to` must be +E164 (e.g. +14155551234). JID form (12345@c.us) is rejected here.",
+    "Variables: each key on `variables` becomes a `{key}` token usable in campaign templates (case-insensitive).",
+    "Custom tokens override built-ins: setting variables.firstName='Doug' makes `{firstName}` resolve to Doug instead of the WA profile name.",
+    "Built-ins always available even without variables: whatsappname, displayname, phone, mobile.",
+    "",
     "Examples:",
     "  - create: 'create an audience called Leads'",
-    "  - append_contacts: 'add +972544325389 to audience aud_1'",
+    "  - append_contacts: 'add +972544325389 to aud_1 with firstName=Doug, product=Premium'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
   annotations: {
@@ -122,7 +127,7 @@ const audiencesTool = {
           data = await client.audiences.deleteContact(input.audience_id, input.contact_id);
           break;
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

@@ -54,8 +54,13 @@ const campaignsTool = {
     "  - get: retrieve a campaign by id",
     "  - pause / resume / cancel: control a running campaign",
     "",
+    "Templates: `text` supports per-contact substitution using SINGLE-brace tokens — `Hi {firstName}, your {product} is renewing`.",
+    "Resolution is case-insensitive. Built-ins always available: {whatsappname}, {displayname}, {phone}, {mobile}.",
+    "Custom tokens come from audiences.append_contacts variables (the property name becomes the token).",
+    "on_missing_variable=fail (default) rejects at create time if any contact lacks a referenced token; skip accepts and leaves `{token}` literal in unresolved sends.",
+    "",
     "Examples:",
-    "  - create: 'campaign called Summer Promo targeting aud_leads with text Hi {{name}}'",
+    "  - create: 'campaign called Summer Promo targeting aud_leads with text \"Hi {firstName}, your {product} is renewing\"'",
     "  - pause: 'pause campaign camp_1'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
@@ -94,7 +99,7 @@ const campaignsTool = {
           data = await client.campaigns.cancel(input.campaign_id);
           break;
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

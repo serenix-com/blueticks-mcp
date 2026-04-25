@@ -3,28 +3,33 @@ import { z } from "zod";
 import { actionSchemaToJsonSchema } from "../src/schema";
 
 describe("actionSchemaToJsonSchema", () => {
-  it("produces a oneOf schema discriminated on action", () => {
+  it("produces a flat schema with an action enum and merged properties", () => {
     const json = actionSchemaToJsonSchema({
       list: z.object({ limit: z.number().int().optional() }).strict(),
       get: z.object({ id: z.string() }).strict(),
     });
 
     expect(json.type).toBe("object");
-    expect(json.oneOf).toHaveLength(2);
+    expect(json.required).toEqual(["action"]);
+    expect(json.additionalProperties).toBe(false);
 
-    const branches = json.oneOf as Array<{ properties: any; required?: string[] }>;
-    const list = branches[0]!;
-    const get = branches[1]!;
-    expect(list.properties.action).toEqual({ type: "string", const: "list" });
-    expect(list.properties.limit).toEqual({ type: "integer" });
-    expect(list.required).toEqual(["action"]);
-
-    expect(get.properties.action).toEqual({ type: "string", const: "get" });
-    expect(get.properties.id).toEqual({ type: "string" });
-    expect(get.required).toEqual(expect.arrayContaining(["action", "id"]));
+    const props = json.properties as Record<string, any>;
+    expect(props.action).toEqual({ type: "string", enum: ["list", "get"] });
+    expect(props.limit).toEqual({ type: "integer" });
+    expect(props.id).toEqual({ type: "string" });
   });
 
   it("rejects empty action map", () => {
     expect(() => actionSchemaToJsonSchema({})).toThrow(/at least one action/);
+  });
+
+  it("does not emit top-level combinators forbidden by the Anthropic API", () => {
+    const json = actionSchemaToJsonSchema({
+      send: z.object({ to: z.string() }).strict(),
+      get: z.object({ id: z.string() }).strict(),
+    });
+    expect(json).not.toHaveProperty("oneOf");
+    expect(json).not.toHaveProperty("anyOf");
+    expect(json).not.toHaveProperty("allOf");
   });
 });

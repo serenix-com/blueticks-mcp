@@ -34,6 +34,34 @@ describe("toolErrorResult", () => {
     expect(body).toMatchObject({ message: "connection refused" });
   });
 
+  it("includes details from APIError when the SDK populated them from envelope", () => {
+    const err = new APIError({
+      statusCode: 400,
+      code: "invalid_request",
+      message: "contacts.0.to: Invalid",
+      requestId: "req_x",
+      details: [{ path: "contacts.0.to", code: "invalid_string", message: "Invalid" }],
+      _rawMessage: true,
+    });
+    const result = toolErrorResult(err);
+    const body = JSON.parse((result.content[0] as { text: string }).text);
+    expect(body.details).toEqual([
+      { path: "contacts.0.to", code: "invalid_string", message: "Invalid" },
+    ]);
+  });
+
+  it("omits details when the SDK error has none", () => {
+    const err = new APIError({
+      statusCode: 503,
+      code: "internal_error",
+      message: "x",
+      requestId: "r",
+      _rawMessage: true,
+    });
+    const body = JSON.parse((toolErrorResult(err).content[0] as { text: string }).text);
+    expect(body).not.toHaveProperty("details");
+  });
+
   it("maps unknown errors to internal-error envelope without leaking stack", () => {
     const err = new Error("kaboom");
     const result = toolErrorResult(err);

@@ -12,7 +12,11 @@ const makeMockClient = () => ({
 describe("whatsapp_engine tool", () => {
   it("has the expected name and 3 actions", () => {
     expect(engineTool.name).toBe("whatsapp_engine");
-    expect(engineTool.inputSchema.oneOf).toHaveLength(3);
+    expect((engineTool.inputSchema.properties.action as { enum: string[] }).enum).toEqual([
+      "status",
+      "logout",
+      "reload",
+    ]);
   });
 
   it("dispatches status -> client.engines.status", async () => {

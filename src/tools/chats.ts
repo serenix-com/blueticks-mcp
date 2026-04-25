@@ -24,6 +24,12 @@ const ListMessagesArgs = z
     chat_id: ChatId,
     limit: z.number().int().min(1).max(200).optional(),
     cursor: z.string().optional(),
+    // The backend (chats.listMessages) accepts these; MCP exposes them so
+    // the LLM can search/scope by date without a follow-up call.
+    mode: z.enum(["latest", "history"]).optional(),
+    query: z.string().min(1).max(200).optional(),
+    since: z.string().datetime().optional(),
+    until: z.string().datetime().optional(),
   })
   .strict();
 
@@ -94,15 +100,18 @@ const chatsTool = {
           data = await client.chats.get(input.chat_id);
           break;
         case "list_messages": {
-          const { chat_id, limit, cursor } = input;
-          data = await client.chats.listMessages(chat_id, compact({ limit, cursor }));
+          const { chat_id, limit, cursor, mode, query, since, until } = input;
+          data = await client.chats.listMessages(
+            chat_id,
+            compact({ limit, cursor, mode, query, since, until }),
+          );
           break;
         }
         case "mark_read":
           data = await client.chats.markRead(input.chat_id);
           break;
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

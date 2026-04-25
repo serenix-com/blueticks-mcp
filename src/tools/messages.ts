@@ -65,7 +65,7 @@ const messagesTool = {
           break;
         }
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

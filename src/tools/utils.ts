@@ -40,7 +40,7 @@ const utilsTool = {
           data = await client.utils.linkPreview({ url: input.url });
           break;
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

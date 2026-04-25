@@ -45,6 +45,10 @@ const groupsTool = {
     "  - create: create a new group with a name and a list of participant phone numbers",
     "  - update: rename a group or change its admin/messaging settings",
     "",
+    "Notes:",
+    "  - Newly-created groups default to admins-only-post (announce=true) and admins-only-edit (restrict=true) — that's WAWeb's default. To open posting/editing to all members, follow create with `update settings={announce:false, restrict:false}`.",
+    "  - participant_count includes the creator/owner. Inviting your own phone number deduplicates into the owner slot rather than adding a separate participant.",
+    "",
     "Examples:",
     "  - get: 'fetch group 972...-1597620113@g.us'",
     "  - create: 'create a group called Crew with +972544325389 and +1234567890'",
@@ -70,7 +74,7 @@ const groupsTool = {
           break;
         }
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }

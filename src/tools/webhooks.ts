@@ -4,11 +4,13 @@ import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const WebhookId = z.string().min(1);
+// Mirror backend KNOWN_EVENT_TYPES (whatsapp-scheduler-backend/src/services/webhooks/constants.ts).
+// `message.sent` does NOT exist as a public event — the backend collapses
+// internal `sent` into `message.sending`. Don't advertise it here.
 const Event = z
   .enum([
     "message.queued",
     "message.sending",
-    "message.sent",
     "message.delivered",
     "message.read",
     "message.failed",
@@ -114,7 +116,7 @@ const webhooksTool = {
           data = await client.webhooks.rotateSecret(input.webhook_id);
           break;
       }
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {
       return toolErrorResult(err);
     }
