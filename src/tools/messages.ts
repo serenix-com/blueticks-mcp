@@ -52,8 +52,7 @@ const messagesTool = {
       let data: unknown;
       switch (input.action) {
         case "send": {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { action: _, ...body } = input;
+          const { action: _action, ...body } = input;
           data = await client.messages.send(body);
           break;
         }
@@ -61,8 +60,7 @@ const messagesTool = {
           data = await client.messages.get(input.id);
           break;
         case "list": {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { action: _, ...query } = input;
+          const { action: _action, ...query } = input;
           data = await client.messages.list(query);
           break;
         }
