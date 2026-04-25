@@ -32,7 +32,7 @@ type AnyTool = (typeof tools)[number];
 
 async function main(): Promise<void> {
   const apiKey = resolveApiKey(process.argv.slice(2), process.env);
-  const client = getClient(apiKey);
+  const client = getClient(apiKey, process.env.BLUETICKS_BASE_URL);
 
   const server = new Server(
     { name: "@blueticks/mcp", version: "0.1.0" },

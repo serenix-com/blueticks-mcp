@@ -18,8 +18,8 @@ export function resolveApiKey(
 
 let cached: Blueticks | undefined;
 
-export function getClient(apiKey: string): Blueticks {
-  if (!cached) cached = new Blueticks({ apiKey });
+export function getClient(apiKey: string, baseUrl?: string): Blueticks {
+  if (!cached) cached = new Blueticks(baseUrl ? { apiKey, baseUrl } : { apiKey });
   return cached;
 }
 
