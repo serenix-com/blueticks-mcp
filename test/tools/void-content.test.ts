@@ -13,7 +13,11 @@ import webhooksTool from "../../src/tools/webhooks";
 
 type Case = {
   name: string;
-  tool: { dispatch: (input: unknown, client: unknown) => Promise<unknown> };
+  // `any` for input/client to bypass TS contravariance: each tool's dispatch
+  // takes a narrow input union (WebhooksInput, AudiencesInput, etc.) and a
+  // typed Blueticks client; widening to unknown here would reject the
+  // assignment. Test bodies cast to never anyway.
+  tool: { dispatch: (input: any, client: any) => Promise<unknown> };
   input: Record<string, unknown>;
   client: Record<string, unknown>;
 };
@@ -67,7 +71,7 @@ describe("void SDK responses produce MCP-valid content", () => {
       };
       expect(result.content).toBeInstanceOf(Array);
       expect(result.content.length).toBeGreaterThan(0);
-      const block = result.content[0];
+      const block = result.content[0]!;
       expect(block.type).toBe("text");
       expect(typeof block.text).toBe("string");
       expect(block.text.length).toBeGreaterThan(0);
