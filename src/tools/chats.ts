@@ -19,6 +19,22 @@ const SearchArgs = z
 
 const GetArgs = z.object({ chat_id: ChatId }).strict();
 
+const MessageTypeEnum = z.enum([
+  "chat",
+  "image",
+  "video",
+  "document",
+  "audio",
+  "ptt",
+  "sticker",
+  "gif",
+  "ptv",
+  "poll_creation",
+  "location",
+  "vcard",
+  "revoked",
+]);
+
 const ListMessagesArgs = z
   .object({
     chat_id: ChatId,
@@ -30,6 +46,10 @@ const ListMessagesArgs = z
     query: z.string().min(1).max(200).optional(),
     since: z.string().datetime().optional(),
     until: z.string().datetime().optional(),
+    // Filter to specific message kinds — e.g. ["document"] for PDFs,
+    // ["image"] for photos. System events (gp2/revoked/newsletter_-
+    // notification) are excluded by default unless explicitly listed.
+    message_types: z.array(MessageTypeEnum).optional(),
   })
   .strict();
 
@@ -100,10 +120,10 @@ const chatsTool = {
           data = await client.chats.get(input.chat_id);
           break;
         case "list_messages": {
-          const { chat_id, limit, cursor, mode, query, since, until } = input;
+          const { chat_id, limit, cursor, mode, query, since, until, message_types } = input;
           data = await client.chats.listMessages(
             chat_id,
-            compact({ limit, cursor, mode, query, since, until }),
+            compact({ limit, cursor, mode, query, since, until, message_types }),
           );
           break;
         }
