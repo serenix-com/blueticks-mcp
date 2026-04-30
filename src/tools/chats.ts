@@ -55,12 +55,20 @@ const ListMessagesArgs = z
 
 const MarkReadArgs = z.object({ chat_id: ChatId }).strict();
 
+const GetMediaArgs = z
+  .object({
+    chat_id: ChatId,
+    key: z.string().min(1),
+  })
+  .strict();
+
 const actions = {
   list: ListArgs,
   search: SearchArgs,
   get: GetArgs,
   list_messages: ListMessagesArgs,
   mark_read: MarkReadArgs,
+  get_media: GetMediaArgs,
 };
 
 type ChatsInput =
@@ -68,7 +76,8 @@ type ChatsInput =
   | ({ action: "search" } & z.infer<typeof SearchArgs>)
   | ({ action: "get" } & z.infer<typeof GetArgs>)
   | ({ action: "list_messages" } & z.infer<typeof ListMessagesArgs>)
-  | ({ action: "mark_read" } & z.infer<typeof MarkReadArgs>);
+  | ({ action: "mark_read" } & z.infer<typeof MarkReadArgs>)
+  | ({ action: "get_media" } & z.infer<typeof GetMediaArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
 function compact<T extends Record<string, unknown>>(obj: T): T {
@@ -87,6 +96,10 @@ const chatsTool = {
     "  - get: retrieve a single chat by chat_id (e.g. 972544325389@c.us)",
     "  - list_messages: list messages inside a chat",
     "  - mark_read: mark all messages in a chat as read",
+    "  - get_media: download media bytes for one message — returns",
+    "      url/data_base64 + mimetype/filename + original_quality flag",
+    "      (false when WA returned a preview rather than the original;",
+    "      currently only happens for own-sent newsletter media).",
     "",
     "Examples:",
     "  - list: 'show me my recent chats'",
@@ -100,6 +113,7 @@ const chatsTool = {
     get: { readOnlyHint: true },
     list_messages: { readOnlyHint: true },
     mark_read: {},
+    get_media: { readOnlyHint: true },
   },
   async dispatch(input: ChatsInput, client: Blueticks): Promise<ToolResult> {
     try {
@@ -129,6 +143,9 @@ const chatsTool = {
         }
         case "mark_read":
           data = await client.chats.markRead(input.chat_id);
+          break;
+        case "get_media":
+          data = await client.chats.getMedia(input.chat_id, input.key);
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
