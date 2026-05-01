@@ -95,6 +95,8 @@ export interface BlueticksChatsApi {
   ): Promise<unknown>;
   getMedia(chatId: string, key: string): Promise<unknown>;
   markRead(chatId: string): Promise<unknown>;
+  getParticipants(chatId: string): Promise<unknown>;
+  loadMoreHistory(chatId: string): Promise<unknown>;
 }
 
 export interface BlueticksContactsApi {
@@ -136,6 +138,7 @@ export interface BlueticksMessagesApi {
   }): Promise<unknown>;
   get(id: string): Promise<unknown>;
   list(params: { limit?: number; cursor?: string }): Promise<unknown>;
+  ack(body: { message_keys: string[] }): Promise<unknown>;
 }
 
 export interface BlueticksUtilsApi {

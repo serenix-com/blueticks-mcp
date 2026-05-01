@@ -62,6 +62,10 @@ const GetMediaArgs = z
   })
   .strict();
 
+const GetParticipantsArgs = z.object({ chat_id: ChatId }).strict();
+
+const LoadMoreHistoryArgs = z.object({ chat_id: ChatId }).strict();
+
 const actions = {
   list: ListArgs,
   search: SearchArgs,
@@ -69,6 +73,8 @@ const actions = {
   list_messages: ListMessagesArgs,
   mark_read: MarkReadArgs,
   get_media: GetMediaArgs,
+  get_participants: GetParticipantsArgs,
+  load_more_history: LoadMoreHistoryArgs,
 };
 
 type ChatsInput =
@@ -77,7 +83,9 @@ type ChatsInput =
   | ({ action: "get" } & z.infer<typeof GetArgs>)
   | ({ action: "list_messages" } & z.infer<typeof ListMessagesArgs>)
   | ({ action: "mark_read" } & z.infer<typeof MarkReadArgs>)
-  | ({ action: "get_media" } & z.infer<typeof GetMediaArgs>);
+  | ({ action: "get_media" } & z.infer<typeof GetMediaArgs>)
+  | ({ action: "get_participants" } & z.infer<typeof GetParticipantsArgs>)
+  | ({ action: "load_more_history" } & z.infer<typeof LoadMoreHistoryArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
 function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -114,6 +122,8 @@ const chatsTool = {
     list_messages: { readOnlyHint: true },
     mark_read: {},
     get_media: { readOnlyHint: true },
+    get_participants: { readOnlyHint: true },
+    load_more_history: {},
   },
   async dispatch(input: ChatsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
@@ -146,6 +156,12 @@ const chatsTool = {
           break;
         case "get_media":
           data = await client.chats.getMedia(input.chat_id, input.key);
+          break;
+        case "get_participants":
+          data = await client.chats.getParticipants(input.chat_id);
+          break;
+        case "load_more_history":
+          data = await client.chats.loadMoreHistory(input.chat_id);
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
