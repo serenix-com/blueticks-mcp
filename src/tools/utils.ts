@@ -6,11 +6,13 @@ import { toolErrorResult, type ToolResult } from "../errors";
 const actions = {
   validate_phone: z.object({ phone_or_chat_id: z.string().min(3) }).strict(),
   link_preview: z.object({ url: z.string().url() }).strict(),
+  current_date_time: z.object({}).strict(),
 };
 
 type UtilsInput =
   | { action: "validate_phone"; phone_or_chat_id: string }
-  | { action: "link_preview"; url: string };
+  | { action: "link_preview"; url: string }
+  | { action: "current_date_time" };
 
 const utilsTool = {
   name: "whatsapp_utils" as const,
@@ -19,15 +21,18 @@ const utilsTool = {
     "Available actions:",
     "  - validate_phone: check whether a phone or chat id is valid and registered on WhatsApp",
     "  - link_preview: generate the preview metadata WhatsApp would show for a URL",
+    "  - current_date_time: engine-resolved current date/time + timezone (browser extension or gateway pod). Always call this before any tool that takes a future timestamp — server tz is not the user's tz.",
     "",
     "Examples:",
     "  - validate_phone: 'is +972544325389 on WhatsApp?'",
     "  - link_preview: 'preview https://blueticks.co for me'",
+    "  - current_date_time: 'what time is it for me right now?'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
   annotations: {
     validate_phone: { readOnlyHint: true },
     link_preview: { readOnlyHint: true },
+    current_date_time: { readOnlyHint: true },
   },
   async dispatch(input: UtilsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
@@ -38,6 +43,9 @@ const utilsTool = {
           break;
         case "link_preview":
           data = await client.utils.linkPreview({ url: input.url });
+          break;
+        case "current_date_time":
+          data = await client.utils.currentDateTime();
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };

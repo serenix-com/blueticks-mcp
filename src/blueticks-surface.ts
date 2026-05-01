@@ -136,6 +136,7 @@ export interface BlueticksMessagesApi {
 export interface BlueticksUtilsApi {
   validatePhone(body: { phone_or_chat_id: string }): Promise<unknown>;
   linkPreview(params: { url: string }): Promise<unknown>;
+  currentDateTime(): Promise<unknown>;
 }
 
 export interface BlueticksWebhooksApi {
