@@ -1,0 +1,4 @@
+{
+  "type": "commonjs",
+  "_comment": "DEV-MODE OVERRIDE — not committed to the submodule. The standalone blueticks-mcp package declares type=module at its root for its own ESM publish target. The backend imports these TS files in CJS context via ts-node-dev; Node's module-type resolution walks up to the nearest package.json and would pick up the submodule root's type=module, which makes ts-node-dev refuse to load these files. This nested package.json overrides type at the src/ subtree so dev mode can transpile-and-require them as CJS. Production is unaffected: tsc compiles the whole tree to lib/*.js (CJS) ahead of time."
+}
