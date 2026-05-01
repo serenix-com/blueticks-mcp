@@ -109,7 +109,12 @@ export interface BlueticksEnginesApi {
 }
 
 export interface BlueticksGroupsApi {
-  get(groupId: string): Promise<unknown>;
+  /**
+   * @param opts.include - request additional fields inline on the response.
+   *   `'participants'` populates `participants[]` (chat_id + admin flags)
+   *   so the caller doesn't have to follow up with a participants query.
+   */
+  get(groupId: string, opts?: { include?: Array<'participants'> }): Promise<unknown>;
   create(body: { name: string; participants: string[] }): Promise<unknown>;
   update(
     groupId: string,

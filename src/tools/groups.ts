@@ -8,7 +8,15 @@ import { toolErrorResult, type ToolResult } from "../errors";
 
 const GroupId = z.string().min(3);
 
-const GetArgs = z.object({ group_id: GroupId }).strict();
+const GetArgs = z
+  .object({
+    group_id: GroupId,
+    // When true, the returned group carries `participants[]` inline —
+    // a single round-trip instead of a follow-up wa_get_chat_participants
+    // call. Default false.
+    include_participants: z.boolean().optional(),
+  })
+  .strict();
 const CreateArgs = z
   .object({ name: z.string().min(1), participants: z.array(z.string().min(3)).min(1) })
   .strict();
@@ -61,7 +69,10 @@ const groupsTool = {
       let data: unknown;
       switch (input.action) {
         case "get":
-          data = await client.groups.get(input.group_id);
+          data = await client.groups.get(
+            input.group_id,
+            input.include_participants ? { include: ['participants'] } : undefined,
+          );
           break;
         case "create":
           data = await client.groups.create({
