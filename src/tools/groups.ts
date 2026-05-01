@@ -30,12 +30,15 @@ const UpdateArgs = z
   })
   .strict();
 
-const actions = { get: GetArgs, create: CreateArgs, update: UpdateArgs };
+const LeaveArgs = z.object({ group_id: GroupId }).strict();
+
+const actions = { get: GetArgs, create: CreateArgs, update: UpdateArgs, leave: LeaveArgs };
 
 type GroupsInput =
   | ({ action: "get" } & z.infer<typeof GetArgs>)
   | ({ action: "create" } & z.infer<typeof CreateArgs>)
-  | ({ action: "update" } & z.infer<typeof UpdateArgs>);
+  | ({ action: "update" } & z.infer<typeof UpdateArgs>)
+  | ({ action: "leave" } & z.infer<typeof LeaveArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
 function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -52,18 +55,26 @@ const groupsTool = {
     "  - get: retrieve a group by group_id (e.g. 972...-1597620113@g.us)",
     "  - create: create a new group with a name and a list of participant phone numbers",
     "  - update: rename a group or change its admin/messaging settings",
+    "  - leave: cancel the authenticated user's membership. NOTE: WhatsApp has no \"destroy group\" — the group continues for any remaining members; only your membership ends.",
     "",
     "Notes:",
     "  - Newly-created groups default to admins-only-post (announce=true) and admins-only-edit (restrict=true) — that's WAWeb's default. To open posting/editing to all members, follow create with `update settings={announce:false, restrict:false}`.",
     "  - participant_count includes the creator/owner. Inviting your own phone number deduplicates into the owner slot rather than adding a separate participant.",
+    "  - `create` always returns participants[] inline so you can confirm membership immediately.",
     "",
     "Examples:",
     "  - get: 'fetch group 972...-1597620113@g.us'",
     "  - create: 'create a group called Crew with +972544325389 and +1234567890'",
     "  - update: 'rename group g@g.us to Sales Team'",
+    "  - leave: 'leave group g@g.us'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
-  annotations: { get: { readOnlyHint: true }, create: {}, update: {} },
+  annotations: {
+    get: { readOnlyHint: true },
+    create: {},
+    update: {},
+    leave: { destructiveHint: true },
+  },
   async dispatch(input: GroupsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
@@ -85,6 +96,9 @@ const groupsTool = {
             input.group_id,
             compact({ name: input.name, settings: input.settings }),
           );
+          break;
+        case "leave":
+          data = await client.groups.leave(input.group_id);
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };

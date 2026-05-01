@@ -125,6 +125,12 @@ export interface BlueticksGroupsApi {
       settings?: { announce?: boolean; restrict?: boolean };
     },
   ): Promise<unknown>;
+  /**
+   * Cancel the authenticated user's membership in the group. WhatsApp
+   * doesn't expose a "destroy group" semantic — the group continues to
+   * exist for any remaining members; only this user's membership ends.
+   */
+  leave(groupId: string): Promise<unknown>;
 }
 
 export interface BlueticksMessagesApi {
