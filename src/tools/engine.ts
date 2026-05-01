@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -32,7 +32,7 @@ const engineTool = {
     logout: { destructiveHint: true },
     reload: { destructiveHint: true },
   },
-  async dispatch(input: EngineInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: EngineInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {

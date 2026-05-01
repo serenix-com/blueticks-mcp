@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -30,10 +30,10 @@ type GroupsInput =
   | ({ action: "update" } & z.infer<typeof UpdateArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): T {
+function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as T;
+  ) as Partial<T>;
 }
 
 const groupsTool = {
@@ -56,23 +56,25 @@ const groupsTool = {
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
   annotations: { get: { readOnlyHint: true }, create: {}, update: {} },
-  async dispatch(input: GroupsInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: GroupsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
         case "get":
           data = await client.groups.get(input.group_id);
           break;
-        case "create": {
-          const { action: _action, ...body } = input;
-          data = await client.groups.create(body);
+        case "create":
+          data = await client.groups.create({
+            name: input.name,
+            participants: input.participants,
+          });
           break;
-        }
-        case "update": {
-          const { action: _action, group_id, ...body } = input;
-          data = await client.groups.update(group_id, compact(body));
+        case "update":
+          data = await client.groups.update(
+            input.group_id,
+            compact({ name: input.name, settings: input.settings }),
+          );
           break;
-        }
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -72,20 +72,30 @@ const campaignsTool = {
     resume: {},
     cancel: { destructiveHint: true },
   },
-  async dispatch(input: CampaignsInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: CampaignsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
-        case "list": {
-          const { action: _action, ...q } = input;
-          data = await client.campaigns.list(compact(q));
+        case "list":
+          data = await client.campaigns.list(
+            compact({ limit: input.limit, cursor: input.cursor }),
+          );
           break;
-        }
-        case "create": {
-          const { action: _action, ...body } = input;
-          data = await client.campaigns.create(compact(body) as Parameters<typeof client.campaigns.create>[0]);
+        case "create":
+          // Required fields go directly; optional ones are spread only when
+          // present so the SDK doesn't see explicit `undefined` slots.
+          data = await client.campaigns.create({
+            name: input.name,
+            audience_id: input.audience_id,
+            ...(input.text !== undefined && { text: input.text }),
+            ...(input.media_url !== undefined && { media_url: input.media_url }),
+            ...(input.media_caption !== undefined && { media_caption: input.media_caption }),
+            ...(input.from !== undefined && { from: input.from }),
+            ...(input.on_missing_variable !== undefined && {
+              on_missing_variable: input.on_missing_variable,
+            }),
+          });
           break;
-        }
         case "get":
           data = await client.campaigns.get(input.campaign_id);
           break;

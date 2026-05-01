@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -29,7 +29,7 @@ const utilsTool = {
     validate_phone: { readOnlyHint: true },
     link_preview: { readOnlyHint: true },
   },
-  async dispatch(input: UtilsInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: UtilsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {

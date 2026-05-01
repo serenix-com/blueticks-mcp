@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -14,8 +14,11 @@ const ListArgs = z
   .strict();
 const CreateArgs = z.object({ name: z.string().min(1) }).strict();
 const GetArgs = z.object({ audience_id: AudienceId }).strict();
+// `name` is required: the SDK's UpdateAudienceParams demands it, and an
+// "update with no fields" call would 400 anyway. Optional schema here would
+// have masked that mismatch with a runtime error.
 const UpdateArgs = z
-  .object({ audience_id: AudienceId, name: z.string().min(1).optional() })
+  .object({ audience_id: AudienceId, name: z.string().min(1) })
   .strict();
 const DeleteArgs = z.object({ audience_id: AudienceId }).strict();
 const AppendArgs = z
@@ -90,38 +93,43 @@ const audiencesTool = {
     update_contact: {},
     remove_contact: { destructiveHint: true },
   },
-  async dispatch(input: AudiencesInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: AudiencesInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
-        case "list": {
-          const { action: _action, ...q } = input;
-          data = await client.audiences.list(compact(q));
+        case "list":
+          data = await client.audiences.list(
+            compact({ limit: input.limit, cursor: input.cursor }),
+          );
           break;
-        }
         case "create":
           data = await client.audiences.create({ name: input.name });
           break;
         case "get":
           data = await client.audiences.get(input.audience_id);
           break;
-        case "update": {
-          const { audience_id, action: _action, ...body } = input;
-          data = await client.audiences.update(audience_id, compact(body) as { name: string });
+        case "update":
+          data = await client.audiences.update(input.audience_id, { name: input.name });
           break;
-        }
         case "delete":
           data = await client.audiences.delete(input.audience_id);
           break;
         case "append_contacts":
-          // SDK takes (id, contacts[]) — array passed directly, not wrapped
-          data = await client.audiences.appendContacts(input.audience_id, input.contacts);
+          // SDK takes (id, contacts[]) — explicit per-element construction
+          // re-asserts the required `to` field that survives zod parsing
+          // but gets lost through TS 6's stricter inference on .min() arrays.
+          data = await client.audiences.appendContacts(
+            input.audience_id,
+            input.contacts.map((c) => ({ to: c.to, variables: c.variables })),
+          );
           break;
-        case "update_contact": {
-          const { audience_id, contact_id, action: _action, ...body } = input;
-          data = await client.audiences.updateContact(audience_id, contact_id, compact(body));
+        case "update_contact":
+          data = await client.audiences.updateContact(
+            input.audience_id,
+            input.contact_id,
+            compact({ to: input.to, variables: input.variables }),
+          );
           break;
-        }
         case "remove_contact":
           // SDK method is deleteContact
           data = await client.audiences.deleteContact(input.audience_id, input.contact_id);
