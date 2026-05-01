@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -80,10 +80,10 @@ type ChatsInput =
   | ({ action: "get_media" } & z.infer<typeof GetMediaArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): T {
+function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as T;
+  ) as Partial<T>;
 }
 
 const chatsTool = {
@@ -115,7 +115,7 @@ const chatsTool = {
     mark_read: {},
     get_media: { readOnlyHint: true },
   },
-  async dispatch(input: ChatsInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: ChatsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {

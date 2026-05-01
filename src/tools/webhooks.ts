@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -87,28 +87,30 @@ const webhooksTool = {
     delete: { destructiveHint: true },
     rotate_secret: { destructiveHint: true },
   },
-  async dispatch(input: WebhooksInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: WebhooksInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
-        case "list": {
-          const { action: _action, ...q } = input;
-          data = await client.webhooks.list(compact(q));
+        case "list":
+          data = await client.webhooks.list(
+            compact({ limit: input.limit, cursor: input.cursor }),
+          );
           break;
-        }
-        case "create": {
-          const { action: _action, ...body } = input;
-          data = await client.webhooks.create(body);
+        case "create":
+          data = await client.webhooks.create({
+            url: input.url,
+            events: input.events,
+          });
           break;
-        }
         case "get":
           data = await client.webhooks.get(input.webhook_id);
           break;
-        case "update": {
-          const { action: _action, webhook_id, ...body } = input;
-          data = await client.webhooks.update(webhook_id, compact(body));
+        case "update":
+          data = await client.webhooks.update(
+            input.webhook_id,
+            compact({ url: input.url, events: input.events, status: input.status }),
+          );
           break;
-        }
         case "delete":
           data = await client.webhooks.delete(input.webhook_id);
           break;

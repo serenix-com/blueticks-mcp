@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -47,23 +47,29 @@ const messagesTool = {
     get: { readOnlyHint: true },
     list: { readOnlyHint: true },
   },
-  async dispatch(input: MessagesInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: MessagesInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
-        case "send": {
-          const { action: _action, ...body } = input;
-          data = await client.messages.send(body);
+        case "send":
+          data = await client.messages.send({
+            to: input.to,
+            text: input.text,
+            media_url: input.media_url,
+            media_caption: input.media_caption,
+            send_at: input.send_at,
+            from: input.from,
+          });
           break;
-        }
         case "get":
           data = await client.messages.get(input.id);
           break;
-        case "list": {
-          const { action: _action, ...query } = input;
-          data = await client.messages.list(query);
+        case "list":
+          data = await client.messages.list({
+            limit: input.limit,
+            cursor: input.cursor,
+          });
           break;
-        }
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {

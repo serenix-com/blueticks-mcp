@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Blueticks } from "blueticks";
+import type { BlueticksSurface } from "../blueticks-surface";
 import { actionSchemaToJsonSchema } from "../schema";
 import { toolErrorResult, type ToolResult } from "../errors";
 
@@ -20,10 +20,10 @@ type ContactsInput =
   | ({ action: "get_profile_picture" } & z.infer<typeof GetProfilePicArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): T {
+function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as T;
+  ) as Partial<T>;
 }
 
 const contactsTool = {
@@ -39,7 +39,7 @@ const contactsTool = {
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
   annotations: { list: { readOnlyHint: true }, get_profile_picture: { readOnlyHint: true } },
-  async dispatch(input: ContactsInput, client: Blueticks): Promise<ToolResult> {
+  async dispatch(input: ContactsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {

@@ -16,6 +16,15 @@ import webhooksTool from "./tools/webhooks";
 import engineTool from "./tools/engine";
 import utilsTool from "./tools/utils";
 
+// scheduledMessagesTool exists in ./tools/scheduled-messages but is NOT
+// in this standalone-server tools list — the Blueticks SDK does not yet
+// expose a `scheduledMessages` resource, so the standalone path can't
+// drive it. The OAuth-wrapped MCP in whatsapp-scheduler-backend imports
+// it directly via the submodule path and dispatches it through an
+// in-process adapter that satisfies BlueticksScheduledMessagesApi.
+// Phase 4 of the migration adds the SDK resource and re-includes the
+// tool here.
+
 const tools = [
   messagesTool,
   chatsTool,
