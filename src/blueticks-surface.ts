@@ -151,6 +151,21 @@ export interface BlueticksWebhooksApi {
   rotateSecret(id: string): Promise<unknown>;
 }
 
+export interface BlueticksScheduledMessagesApi {
+  list(params: { limit?: number; cursor?: string }): Promise<unknown>;
+  get(id: string): Promise<unknown>;
+  update(
+    id: string,
+    body: {
+      text?: string;
+      media_url?: string;
+      media_caption?: string;
+      send_at?: string;
+    },
+  ): Promise<unknown>;
+  delete(id: string): Promise<unknown>;
+}
+
 export interface BlueticksSurface {
   audiences: BlueticksAudiencesApi;
   campaigns: BlueticksCampaignsApi;
@@ -159,6 +174,7 @@ export interface BlueticksSurface {
   engines: BlueticksEnginesApi;
   groups: BlueticksGroupsApi;
   messages: BlueticksMessagesApi;
+  scheduledMessages: BlueticksScheduledMessagesApi;
   utils: BlueticksUtilsApi;
   webhooks: BlueticksWebhooksApi;
 }
