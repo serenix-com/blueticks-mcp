@@ -21,7 +21,16 @@ const ListArgs = z
   .strict();
 
 const AckArgs = z
-  .object({ message_keys: z.array(z.string().min(1)).min(1).max(200) })
+  .object({
+    // Each entry is a WhatsApp wire message key (e.g.
+    // `false_12345@c.us_3EB0...`) — NOT the internal message `id`
+    // returned by `send`. Pull these from the `key` field on the
+    // response of `whatsapp_messages.get` (or `list`), or from
+    // `whatsapp_chats.list_messages`. The `key` is null on a
+    // freshly-`queued` message — wait for the lifecycle to advance to
+    // `sending`/`delivered` before you can ack-check.
+    message_keys: z.array(z.string().min(1)).min(1).max(200),
+  })
   .strict();
 
 const actions = { send: SendArgs, get: GetArgs, list: ListArgs, ack: AckArgs };
@@ -42,11 +51,21 @@ const messagesTool = {
     "  - list: list previously sent messages, newest first (cursor pagination)",
     "  - ack: batch lookup of delivery + read acknowledgements for up to 200 message keys",
     "",
+    "Identifier model (important for chaining send → ack):",
+    "  - `id` is the internal Blueticks message id, returned by `send` and",
+    "    accepted by `get`. Use it to look up message status / lifecycle.",
+    "  - `key` is the WhatsApp wire message key (e.g. `false_12345@c.us_3EB0...`),",
+    "    populated by the engine once the message is dispatched. Use it for",
+    "    `ack` here, and for every `whatsapp_chats` per-message endpoint",
+    "    (`messages.{key}`, `messages.{key}.media`, etc.). It is null on a",
+    "    freshly-queued message — call `get` after status advances to",
+    "    `sending`/`delivered` to obtain it.",
+    "",
     "Examples:",
     "  - send: 'message +972544325389 — your appointment is tomorrow at 10am'",
     "  - get: 'what\\'s the status of message msg_abc?'",
     "  - list: 'show me the last 20 messages'",
-    "  - ack: 'were these 3 messages read? keys=[k1, k2, k3]'",
+    "  - ack: 'were these 3 messages read?' (message_keys come from get/list `key` field)",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
   annotations: {
