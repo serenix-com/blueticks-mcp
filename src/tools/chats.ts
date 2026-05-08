@@ -158,10 +158,10 @@ const chatsTool = {
           data = await client.chats.getMedia(input.chat_id, input.key);
           break;
         case "get_participants":
-          data = await client.chats.getParticipants(input.chat_id);
+          data = await client.chats.listParticipants(input.chat_id);
           break;
         case "load_more_history":
-          data = await client.chats.loadMoreHistory(input.chat_id);
+          data = await client.chats.loadOlderMessages(input.chat_id);
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };

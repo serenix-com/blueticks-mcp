@@ -98,7 +98,9 @@ const messagesTool = {
           });
           break;
         case "ack":
-          data = await client.messages.ack({ message_keys: input.message_keys });
+          // Batch ack lookup lives on the chats resource in the SDK
+          // (v3.4.x): each key is `false_<jid>_<id>`, addressable by chat.
+          data = await client.chats.batchMessageAcks({ message_keys: input.message_keys });
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };

@@ -21,7 +21,7 @@ const utilsTool = {
     "Available actions:",
     "  - validate_phone: check whether a phone or chat id is valid and registered on WhatsApp",
     "  - link_preview: generate the preview metadata WhatsApp would show for a URL",
-    "  - current_date_time: engine-resolved current date/time + timezone (browser extension or gateway pod). Always call this before any tool that takes a future timestamp — server tz is not the user's tz.",
+    "  - current_date_time: current date/time + timezone of the MCP host (gateway pod or stdio bridge). Always call this before any tool that takes a future timestamp.",
     "",
     "Examples:",
     "  - validate_phone: 'is +972544325389 on WhatsApp?'",
@@ -44,9 +44,20 @@ const utilsTool = {
         case "link_preview":
           data = await client.utils.linkPreview({ url: input.url });
           break;
-        case "current_date_time":
-          data = await client.utils.currentDateTime();
+        case "current_date_time": {
+          // Local-only helper — there's no backend endpoint for this and
+          // the SDK doesn't expose it. Returns the MCP host's time. If
+          // the MCP runs in the gateway pod, that's UTC; via stdio
+          // bridge, the user's machine.
+          const now = new Date();
+          data = {
+            iso: now.toISOString(),
+            unix_ms: now.getTime(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            offset_minutes: -now.getTimezoneOffset(),
+          };
           break;
+        }
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {

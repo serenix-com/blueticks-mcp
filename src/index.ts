@@ -64,8 +64,16 @@ async function main(): Promise<void> {
         content: [{ type: "text", text: `Unknown tool: ${request.params.name}` }],
       } as CallToolResult;
     }
+    // TypeScript can't represent the union of every tool's dispatch
+    // input once you have ~10 tools × multi-variant actions (TS2590).
+    // Cast through a relaxed signature; runtime safety is enforced by
+    // the per-tool zod schema each dispatcher applies internally.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return tool.dispatch(request.params.arguments as any, client) as Promise<CallToolResult>;
+    type Dispatch = (input: unknown, client: any) => Promise<CallToolResult>;
+    return (tool.dispatch as unknown as Dispatch)(
+      request.params.arguments,
+      client,
+    );
   });
 
   const transport = new StdioServerTransport();

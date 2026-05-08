@@ -95,8 +95,13 @@ export interface BlueticksChatsApi {
   ): Promise<unknown>;
   getMedia(chatId: string, key: string): Promise<unknown>;
   markRead(chatId: string): Promise<unknown>;
-  getParticipants(chatId: string): Promise<unknown>;
-  loadMoreHistory(chatId: string): Promise<unknown>;
+  batchMessageAcks(body: { message_keys: string[] }): Promise<unknown>;
+  // Method names track the blueticks SDK (v3.4.x renamed
+  // `getParticipants` → `listParticipants`, `loadMoreHistory` →
+  // `loadOlderMessages`). Tool dispatchers in tools/chats.ts translate
+  // the MCP action names to these SDK calls.
+  listParticipants(chatId: string): Promise<unknown>;
+  loadOlderMessages(chatId: string): Promise<unknown>;
 }
 
 export interface BlueticksContactsApi {
@@ -116,7 +121,11 @@ export interface BlueticksGroupsApi {
    *   `'participants'` populates `participants[]` (chat_id + admin flags)
    *   so the caller doesn't have to follow up with a participants query.
    */
-  get(groupId: string, opts?: { include?: Array<'participants'> }): Promise<unknown>;
+  // Tracks the SDK signature exactly. The `include: ['participants']`
+  // single-round-trip variant isn't part of the SDK yet — tools/groups.ts
+  // emulates it by chaining a `chats.listParticipants` call when the
+  // MCP `include_participants` flag is set.
+  get(groupId: string, opts?: { signal?: AbortSignal }): Promise<unknown>;
   create(body: { name: string; participants: string[] }): Promise<unknown>;
   update(
     groupId: string,
@@ -144,13 +153,11 @@ export interface BlueticksMessagesApi {
   }): Promise<unknown>;
   get(id: string): Promise<unknown>;
   list(params: { limit?: number; cursor?: string }): Promise<unknown>;
-  ack(body: { message_keys: string[] }): Promise<unknown>;
 }
 
 export interface BlueticksUtilsApi {
   validatePhone(body: { phone_or_chat_id: string }): Promise<unknown>;
   linkPreview(params: { url: string }): Promise<unknown>;
-  currentDateTime(): Promise<unknown>;
 }
 
 export interface BlueticksWebhooksApi {
@@ -167,7 +174,10 @@ export interface BlueticksWebhooksApi {
 
 export interface BlueticksScheduledMessagesApi {
   list(params: { limit?: number; cursor?: string }): Promise<unknown>;
-  get(id: string): Promise<unknown>;
+  // SDK uses `retrieve` (consistent with the rest of the SDK's
+  // get-by-id naming); tools/scheduled-messages.ts maps the public
+  // `get` action to this method.
+  retrieve(id: string): Promise<unknown>;
   update(
     id: string,
     body: {

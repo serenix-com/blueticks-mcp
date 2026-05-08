@@ -79,7 +79,9 @@ const scheduledMessagesTool = {
           });
           break;
         case "get":
-          data = await client.scheduledMessages.get(input.message_id);
+          // Public MCP action `get` maps to the SDK's `retrieve` method
+          // (SDK convention for get-by-id).
+          data = await client.scheduledMessages.retrieve(input.message_id);
           break;
         case "update":
           data = await client.scheduledMessages.update(input.message_id, {

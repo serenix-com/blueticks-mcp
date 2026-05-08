@@ -80,10 +80,20 @@ const groupsTool = {
       let data: unknown;
       switch (input.action) {
         case "get":
-          data = await client.groups.get(
-            input.group_id,
-            input.include_participants ? { include: ['participants'] } : undefined,
-          );
+          // Single-round-trip variant (`include: ['participants']`) isn't
+          // exposed by the blueticks SDK yet (v3.4.x). Emulate it by
+          // chaining a chats.listParticipants call and merging the
+          // results — keeps the public MCP shape (`group + participants`)
+          // stable while we wait for the SDK to add the include flag.
+          if (input.include_participants) {
+            const [group, participants] = await Promise.all([
+              client.groups.get(input.group_id),
+              client.chats.listParticipants(input.group_id),
+            ]);
+            data = { ...(group as Record<string, unknown>), participants };
+          } else {
+            data = await client.groups.get(input.group_id);
+          }
           break;
         case "create":
           data = await client.groups.create({
