@@ -12,7 +12,7 @@ export function resolveApiKey(
   const fromEnv = env.BLUETICKS_API_KEY;
   if (fromEnv && fromEnv.length > 0) return fromEnv;
   throw new Error(
-    "BLUETICKS_API_KEY not set. Either export it or pass --api-key bt_live_... See https://github.com/serenix-com/blueticks-mcp#configuration",
+    "BLUETICKS_API_KEY not set. Either export it or pass --api-key BLUETICKS_API_KEY See https://github.com/serenix-com/blueticks-mcp#configuration",
   );
 }
 
