@@ -9,6 +9,17 @@ const SendArgs = z
     text: z.string().optional(),
     media_url: z.string().url().optional(),
     media_caption: z.string().optional(),
+    // Send a poll. Mutually exclusive with text/media_url. WhatsApp
+    // poll questions cap at 255 chars; option labels at 100 chars; up
+    // to 12 options. Validation lives at /v1/messages.
+    poll: z
+      .object({
+        question: z.string().min(1).max(255),
+        options: z.array(z.string().min(1).max(100)).min(2).max(12),
+        allow_multiple: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     send_at: z.string().datetime().optional(),
     from: z.string().optional(),
   })
@@ -46,7 +57,10 @@ const messagesTool = {
   description: [
     "Send WhatsApp messages or look up previously sent ones.",
     "Available actions:",
-    "  - send: send a message now (or schedule for later via send_at)",
+    "  - send: send a message now (or schedule for later via send_at). Use",
+    "    `text` for plain text, `media_url` for image/video/document, or",
+    "    `poll: {question, options, allow_multiple?}` for a WhatsApp poll.",
+    "    The three are mutually exclusive — exactly one of text/media/poll.",
     "  - get: retrieve a single message by id",
     "  - list: list previously sent messages, newest first (cursor pagination)",
     "  - ack: batch lookup of delivery + read acknowledgements for up to 200 message keys",
@@ -84,6 +98,7 @@ const messagesTool = {
             text: input.text,
             media_url: input.media_url,
             media_caption: input.media_caption,
+            poll: input.poll,
             send_at: input.send_at,
             from: input.from,
           });

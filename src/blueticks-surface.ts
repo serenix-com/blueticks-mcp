@@ -148,6 +148,17 @@ export interface BlueticksMessagesApi {
     text?: string;
     media_url?: string;
     media_caption?: string;
+    /**
+     * Send a WhatsApp poll. Mutually exclusive with `text`/`media_url`.
+     * `options` is the flat list of choice labels; `allow_multiple` lets
+     * voters pick more than one. Engine handles single-vote vs multi-vote
+     * via separate WAWeb call paths internally.
+     */
+    poll?: {
+      question: string;
+      options: string[];
+      allow_multiple?: boolean;
+    };
     send_at?: string;
     from?: string;
   }): Promise<unknown>;

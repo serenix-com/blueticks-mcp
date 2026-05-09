@@ -47,6 +47,26 @@ function isBluetickErrorLike(err: unknown): err is BluetickErrorLike {
   return "statusCode" in err && "code" in err && !("requestId" in err);
 }
 
+interface FeathersErrorLike {
+  name: string;
+  code: number;       // Feathers uses numeric `code` as the HTTP status
+  className?: string; // e.g. 'not-found', 'bad-request', 'unprocessable'
+  message: string;
+  data?: unknown;
+  errors?: unknown;
+}
+
+function isFeathersErrorLike(err: unknown): err is FeathersErrorLike {
+  if (!err || typeof err !== "object") return false;
+  // Feathers error shape: numeric `code` (the HTTP status) + `name`.
+  // Distinct from the SDK's BluetickError which uses string `code`
+  // and `statusCode`. Without this branch, a NotFound thrown inside a
+  // /v1 service goes through `toolErrorResult` and gets recoded as
+  // `{status: 500, code: 'internal_error'}`, hiding the real 404.
+  const e = err as { code?: unknown; name?: unknown };
+  return typeof e.code === "number" && typeof e.name === "string";
+}
+
 export function toolErrorResult(err: unknown): ToolResult {
   if (isApiErrorLike(err)) {
     return wrap(withDetails({
@@ -62,6 +82,23 @@ export function toolErrorResult(err: unknown): ToolResult {
       code: err.code ?? "client_error",
       message: err.message,
     }, err));
+  }
+  if (isFeathersErrorLike(err)) {
+    // Map either `className` (kebab-case in stock Feathers errors) or
+    // `name` (PascalCase like 'NotFound', 'GatewayTimeout') down to a
+    // single snake_case public `code`. Some custom subclasses pass the
+    // args flipped (kebab in `name`, Pascal in `className`) — handle
+    // both. Status comes straight from `code`.
+    const raw = err.className ?? err.name;
+    const code = raw
+      .replace(/-/g, "_")                               // kebab → snake
+      .replace(/([a-z\d])([A-Z])/g, "$1_$2")            // PascalCase → snake_Case
+      .toLowerCase();
+    return wrap(withDetails({
+      status: err.code,
+      code,
+      message: err.message,
+    }, err as { details?: unknown[] }));
   }
   if (err instanceof Error) {
     // eslint-disable-next-line no-console
