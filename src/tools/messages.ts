@@ -98,7 +98,18 @@ const messagesTool = {
             text: input.text,
             media_url: input.media_url,
             media_caption: input.media_caption,
-            poll: input.poll,
+            // Zod's optional-on-wrapper inference loses inner-field
+            // requiredness in some TS pipelines, so surface the
+            // shape explicitly when the caller passed a poll object.
+            ...(input.poll
+              ? {
+                  poll: {
+                    question: input.poll.question!,
+                    options: input.poll.options!,
+                    allow_multiple: input.poll.allow_multiple,
+                  },
+                }
+              : {}),
             send_at: input.send_at,
             from: input.from,
           });
