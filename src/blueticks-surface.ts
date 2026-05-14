@@ -124,8 +124,12 @@ export interface BlueticksGroupsApi {
   // Tracks the SDK signature exactly. The `include: ['participants']`
   // single-round-trip variant isn't part of the SDK yet — tools/groups.ts
   // emulates it by chaining a `chats.listParticipants` call when the
-  // MCP `include_participants` flag is set.
-  get(groupId: string, opts?: { signal?: AbortSignal }): Promise<unknown>;
+  // MCP `include_participants` flag is set. The in-process adapter
+  // accepts `include` directly and translates it to the v1 query string.
+  get(
+    groupId: string,
+    opts?: { signal?: AbortSignal; include?: string[] },
+  ): Promise<unknown>;
   create(body: { name: string; participants: string[] }): Promise<unknown>;
   update(
     groupId: string,
@@ -169,6 +173,7 @@ export interface BlueticksMessagesApi {
 export interface BlueticksUtilsApi {
   validatePhone(body: { phone_or_chat_id: string }): Promise<unknown>;
   linkPreview(params: { url: string }): Promise<unknown>;
+  currentDateTime(): Promise<unknown>;
 }
 
 export interface BlueticksWebhooksApi {
