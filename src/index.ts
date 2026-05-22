@@ -6,24 +6,32 @@ import {
   type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import { resolveApiKey, getClient } from "./client";
-import messagesTool from "./tools/messages";
-import chatsTool from "./tools/chats";
-import contactsTool from "./tools/contacts";
-import groupsTool from "./tools/groups";
-import audiencesTool from "./tools/audiences";
-import campaignsTool from "./tools/campaigns";
-import webhooksTool from "./tools/webhooks";
-import engineTool from "./tools/engine";
-import utilsTool from "./tools/utils";
 
-// scheduledMessagesTool exists in ./tools/scheduled-messages but is NOT
-// in this standalone-server tools list — the Blueticks SDK does not yet
-// expose a `scheduledMessages` resource, so the standalone path can't
-// drive it. The OAuth-wrapped MCP in whatsapp-scheduler-backend imports
-// it directly via the submodule path and dispatches it through an
-// in-process adapter that satisfies BlueticksScheduledMessagesApi.
-// Phase 4 of the migration adds the SDK resource and re-includes the
-// tool here.
+// Tool defs are owned by the backend (single source of truth: every
+// MCP entrypoint — this stdio standalone and the backend's in-process
+// OAuth path — runs the same definitions). The backend repo is
+// submoduled at ./backend and tsup bundles the imported defs into
+// dist/ at publish time, so the published @blueticks/mcp package has
+// no submodule dependency at runtime.
+import {
+  audiencesTool,
+  campaignsTool,
+  chatsTool,
+  contactsTool,
+  engineTool,
+  groupsTool,
+  messagesTool,
+  utilsTool,
+  webhooksTool,
+} from "../backend/src/mcp-tool-defs";
+
+// scheduledMessagesTool exists in the backend tool defs but the
+// standalone is NOT wired for it yet — the published `blueticks` Node
+// SDK doesn't expose a `scheduledMessages` resource, so dispatch from
+// the standalone path would fail at runtime. The backend OAuth path
+// drives it via the in-process adapter which satisfies
+// BlueticksScheduledMessagesApi directly. Add it here once the SDK
+// resource lands.
 
 const tools = [
   messagesTool,
