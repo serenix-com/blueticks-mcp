@@ -20,21 +20,13 @@ import {
   contactsTool,
   engineTool,
   groupsTool,
-  messagesTool,
+  scheduledMessagesTool,
   utilsTool,
   webhooksTool,
 } from "../backend/src/mcp-tool-defs";
 
-// scheduledMessagesTool exists in the backend tool defs but the
-// standalone is NOT wired for it yet — the published `blueticks` Node
-// SDK doesn't expose a `scheduledMessages` resource, so dispatch from
-// the standalone path would fail at runtime. The backend OAuth path
-// drives it via the in-process adapter which satisfies
-// BlueticksScheduledMessagesApi directly. Add it here once the SDK
-// resource lands.
-
 const tools = [
-  messagesTool,
+  scheduledMessagesTool,
   chatsTool,
   contactsTool,
   groupsTool,
