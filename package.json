@@ -1,6 +1,6 @@
 {
   "name": "@blueticks/mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Blueticks MCP server (stdio) — drive WhatsApp automation from Claude Desktop, Cursor, and Cline.",
   "keywords": [
     "blueticks",
