@@ -7,12 +7,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { resolveApiKey, getClient } from "./client";
 
-// Tool defs are owned by the backend (single source of truth: every
-// MCP entrypoint — this stdio standalone and the backend's in-process
-// OAuth path — runs the same definitions). The backend repo is
-// submoduled at ./backend and tsup bundles the imported defs into
-// dist/ at publish time, so the published @blueticks/mcp package has
-// no submodule dependency at runtime.
+// Tool defs are VENDORED here at src/tool-defs (see src/tool-defs/VENDORED.md).
+// Source of truth is the backend: whatsapp-scheduler-backend
+// src/mcp-tool-defs (prod). We keep a checked-in copy rather than a submodule
+// because that repo is private — CI can't clone a private submodule with the
+// default token, and the published @blueticks/mcp package must build
+// self-contained. Re-sync the copy when the backend tool-defs change.
 import {
   audiencesTool,
   campaignsTool,
@@ -23,7 +23,8 @@ import {
   scheduledMessagesTool,
   utilsTool,
   webhooksTool,
-} from "../backend/src/mcp-tool-defs";
+  type BlueticksSurface,
+} from "./tool-defs";
 
 const tools = [
   scheduledMessagesTool,
@@ -41,7 +42,19 @@ type AnyTool = (typeof tools)[number];
 
 async function main(): Promise<void> {
   const apiKey = resolveApiKey(process.argv.slice(2), process.env);
-  const client = getClient(apiKey, process.env.BLUETICKS_BASE_URL);
+  // Typed as the tool-def surface (not the concrete `Blueticks`) so any drift
+  // between what the tools call and the real SDK is a compile error: if the
+  // published `blueticks` SDK stops matching what the tools call, the build
+  // fails here rather than at runtime with "tool execution failed".
+  //
+  // `suno` is omitted: it's a backend-in-process-adapter surface (uploadAudio),
+  // not part of the published SDK's SunoResource (uploadReference), and this
+  // standalone server does not register the suno tool. Every tool it DOES ship
+  // still gets full drift-checking against the real SDK.
+  const client: Omit<BlueticksSurface, "suno"> = getClient(
+    apiKey,
+    process.env.BLUETICKS_BASE_URL,
+  );
 
   const server = new Server(
     { name: "@blueticks/mcp", version: "0.1.0" },
@@ -68,8 +81,7 @@ async function main(): Promise<void> {
     // input once you have ~10 tools × multi-variant actions (TS2590).
     // Cast through a relaxed signature; runtime safety is enforced by
     // the per-tool zod schema each dispatcher applies internally.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    type Dispatch = (input: unknown, client: any) => Promise<CallToolResult>;
+    type Dispatch = (input: unknown, client: BlueticksSurface) => Promise<CallToolResult>;
     return (tool.dispatch as unknown as Dispatch)(
       request.params.arguments,
       client,

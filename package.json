@@ -1,6 +1,6 @@
 {
   "name": "@blueticks/mcp",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Blueticks MCP server (stdio) — drive WhatsApp automation from Claude Desktop, Cursor, and Cline.",
   "keywords": [
     "blueticks",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "blueticks": "^3.4.2",
+    "blueticks": "^4.0.0",
     "zod": "^3.23.0",
     "zod-to-json-schema": "^3.23.0"
   },

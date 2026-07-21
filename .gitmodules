@@ -1,3 +1,0 @@
-[submodule "backend"]
-	path = backend
-	url = https://github.com/serenix-com/whatsapp-scheduler-backend.git

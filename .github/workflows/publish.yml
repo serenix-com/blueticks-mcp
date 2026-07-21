@@ -3,6 +3,16 @@ name: Publish to npm
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+
+# OIDC trusted publishing (npm) — no long-lived token. The trust is configured
+# on the npmjs '@blueticks/mcp' package (Settings → Trusted Publisher) for this
+# repo + workflow + the 'npm' environment. Requires npm >= 11.5.1 for OIDC.
+# Tool-defs are vendored (src/tool-defs), so the build is self-contained — no
+# private submodule to fetch.
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   publish:
@@ -16,10 +26,9 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
       - run: npm test -- --run
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
