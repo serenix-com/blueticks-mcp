@@ -4,6 +4,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      registry_only:
+        description: 'Only publish server.json to the MCP Registry (skip the npm publish)'
+        type: boolean
+        default: false
 
 # OIDC trusted publishing (npm) — no long-lived token. The trust is configured
 # on the npmjs '@blueticks/mcp' package (Settings → Trusted Publisher) for this
@@ -14,8 +19,13 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  # Pinned deliberately; the archive is verified with cosign below. Bump on purpose.
+  MCP_PUBLISHER_VERSION: v1.8.7
+
 jobs:
   publish:
+    if: ${{ !inputs.registry_only }}
     runs-on: ubuntu-latest
     environment:
       name: npm
@@ -32,3 +42,39 @@ jobs:
       - run: npm run build
       - run: npm test -- --run
       - run: npm publish --access public
+
+  # Publishes server.json to the official MCP Registry. The io.github.serenix-com/*
+  # namespace is an org namespace, so it needs GitHub Actions OIDC; the interactive
+  # `mcp-publisher login github` gets a 403. No secret is used here.
+  registry:
+    needs: publish
+    if: ${{ always() && (needs.publish.result == 'success' || inputs.registry_only) }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check server.json matches package.json
+        run: |
+          set -euo pipefail
+          v="$(jq -r .version package.json)"
+          test "$(jq -r .version server.json)" = "$v"
+          test "$(jq -r '.packages[0].version' server.json)" = "$v"
+          test "$(jq -r .mcpName package.json)" = "$(jq -r .name server.json)"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Download and verify mcp-publisher
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish
