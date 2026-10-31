@@ -1,5 +1,6 @@
 {
   "name": "@blueticks/mcp",
+  "mcpName": "io.github.serenix-com/blueticks",
   "version": "1.1.1",
   "description": "Blueticks MCP server (stdio) \u2014 drive WhatsApp automation from Claude Desktop, Cursor, and Cline.",
   "keywords": [
