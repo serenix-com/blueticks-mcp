@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.serenix-com/blueticks",
+  "title": "Blueticks WhatsApp MCP",
+  "description": "WhatsApp MCP on your own number: read chats, send and schedule messages.",
+  "version": "1.1.2",
+  "websiteUrl": "https://blueticks.co/mcp",
+  "repository": {
+    "url": "https://github.com/serenix-com/blueticks-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@blueticks/mcp",
+      "version": "1.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "BLUETICKS_API_KEY",
+          "description": "Blueticks API key",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.blueticks.co/mcp"
+    }
+  ]
+}
