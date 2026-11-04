@@ -20,6 +20,17 @@ The server reads the key from the `BLUETICKS_API_KEY` environment variable, or f
 claude mcp add blueticks --env BLUETICKS_API_KEY=your_key -- npx -y @blueticks/mcp
 ```
 
+### Claude Code plugin (hosted, no API key)
+
+Sign in with your Blueticks account over OAuth instead of using a key:
+
+```bash
+claude plugin marketplace add serenix-com/blueticks-mcp
+claude plugin install blueticks@blueticks-mcp
+```
+
+Then run `/mcp` in Claude Code, pick `blueticks`, and follow the browser sign-in.
+
 ### Cursor
 
 Add to `~/.cursor/mcp.json` (or the project's `.cursor/mcp.json`):

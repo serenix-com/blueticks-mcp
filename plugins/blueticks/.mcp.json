@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "blueticks": {
+      "type": "http",
+      "url": "https://api.blueticks.co/mcp"
+    }
+  }
+}
