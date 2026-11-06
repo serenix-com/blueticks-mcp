@@ -36,12 +36,35 @@ const UpdateArgs = z
 
 const LeaveArgs = z.object({ group_id: GroupId }).strict();
 
+const GetPictureArgs = z.object({ group_id: GroupId }).strict();
+const RemovePictureArgs = z.object({ group_id: GroupId }).strict();
+// set_picture: exactly one image source — an https url, or base64 bytes (bare, or a data: URL).
+const SetPictureArgs = z
+  .object({
+    group_id: GroupId,
+    picture_url: z
+      .string()
+      .url()
+      .refine((u) => u.startsWith("https://"), "picture_url must use https://")
+      .optional(),
+    picture_base64: z.string().min(1).optional(),
+    // Content-type for a BARE base64 string (a data: URL carries its own). Defaults to image/jpeg.
+    picture_mime_type: z.string().max(127).optional(),
+  })
+  .strict()
+  .refine((v) => (v.picture_url !== undefined) !== (v.picture_base64 !== undefined), {
+    message: "set_picture needs exactly one of picture_url or picture_base64",
+  });
+
 const actions = {
   list: ListArgs,
   get: GetArgs,
   create: CreateArgs,
   update: UpdateArgs,
   leave: LeaveArgs,
+  get_picture: GetPictureArgs,
+  set_picture: SetPictureArgs,
+  remove_picture: RemovePictureArgs,
 };
 
 type GroupsInput =
@@ -49,7 +72,10 @@ type GroupsInput =
   | ({ action: "get" } & z.infer<typeof GetArgs>)
   | ({ action: "create" } & z.infer<typeof CreateArgs>)
   | ({ action: "update" } & z.infer<typeof UpdateArgs>)
-  | ({ action: "leave" } & z.infer<typeof LeaveArgs>);
+  | ({ action: "leave" } & z.infer<typeof LeaveArgs>)
+  | ({ action: "get_picture" } & z.infer<typeof GetPictureArgs>)
+  | ({ action: "set_picture" } & z.infer<typeof SetPictureArgs>)
+  | ({ action: "remove_picture" } & z.infer<typeof RemovePictureArgs>);
 
 /** Strip keys whose value is undefined so SDK param objects stay clean. */
 function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -67,6 +93,9 @@ const groupsTool = {
     "  - get: retrieve a group by group_id (e.g. 972...-1597620113@g.us); set include_participants for the member list inline",
     "  - create: create a new group with a name and a list of participant phone numbers",
     "  - update: rename a group or change its admin/messaging settings",
+    "  - get_picture: the group's current picture as a short-lived WhatsApp image url (`url` is null when the group has none)",
+    "  - set_picture: set the group picture from `picture_url` (https) or `picture_base64` (bare base64 with optional `picture_mime_type`, or a data: URL). Only group admins can when the group is admins-only-edit (the default for new groups); otherwise 403 not_authorized.",
+    "  - remove_picture: remove the group picture. Baileys (gateway) engine only; the Chrome extension cannot remove a picture (501 unsupported_command). Same admin rule as set_picture.",
     "  - leave: cancel the authenticated user's membership. NOTE: WhatsApp has no \"destroy group\" — the group continues for any remaining members; only your membership ends.",
     "",
     "Notes:",
@@ -88,6 +117,9 @@ const groupsTool = {
     create: {},
     update: {},
     leave: { destructiveHint: true },
+    get_picture: { readOnlyHint: true },
+    set_picture: {},
+    remove_picture: { destructiveHint: true },
   },
   async dispatch(input: GroupsInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
@@ -121,6 +153,30 @@ const groupsTool = {
           break;
         case "leave":
           data = await client.groups.leave(input.group_id);
+          break;
+        case "get_picture":
+          data = await client.groups.getPicture(input.group_id);
+          break;
+        case "set_picture": {
+          const { picture_url, picture_base64, picture_mime_type } = input;
+          if (picture_url) {
+            data = await client.groups.setPicture(input.group_id, { url: picture_url });
+          } else {
+            const b64 = picture_base64 as string;
+            const isDataUrl = b64.startsWith("data:");
+            const mime = picture_mime_type ?? (isDataUrl ? undefined : "image/jpeg");
+            data = await client.groups.setPicture(
+              input.group_id,
+              compact({
+                fileDataUrl: isDataUrl ? b64 : `data:${mime};base64,${b64}`,
+                fileMimeType: picture_mime_type,
+              }),
+            );
+          }
+          break;
+        }
+        case "remove_picture":
+          data = await client.groups.removePicture(input.group_id);
           break;
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };

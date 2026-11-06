@@ -222,6 +222,15 @@ export interface BlueticksGroupsApi {
    * exist for any remaining members; only this user's membership ends.
    */
   leave(groupId: string): Promise<unknown>;
+  /** The group's current picture: `{ url }` (short-lived WhatsApp CDN url, null when none). */
+  getPicture(groupId: string): Promise<unknown>;
+  /** Set the picture from an https `url` or a `fileDataUrl` (data: URL). Admins only on admins-only-edit groups. */
+  setPicture(
+    groupId: string,
+    body: { url?: string; fileDataUrl?: string; fileMimeType?: string },
+  ): Promise<unknown>;
+  /** Remove the picture. Baileys engine only (the Chrome extension has no handler → 501). */
+  removePicture(groupId: string): Promise<unknown>;
 }
 
 export interface BlueticksMessagesApi {
