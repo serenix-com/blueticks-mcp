@@ -121,7 +121,7 @@ const groupsTool = {
     set_picture: {},
     remove_picture: { destructiveHint: true },
   },
-  async dispatch(input: GroupsInput, client: BlueticksSurface): Promise<ToolResult> {
+  async dispatch(input: GroupsInput, client: Pick<BlueticksSurface, "groups">): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
@@ -159,19 +159,32 @@ const groupsTool = {
           break;
         case "set_picture": {
           const { picture_url, picture_base64, picture_mime_type } = input;
-          if (picture_url) {
+          if (picture_url !== undefined) {
             data = await client.groups.setPicture(input.group_id, { url: picture_url });
-          } else {
-            const b64 = picture_base64 as string;
-            const isDataUrl = b64.startsWith("data:");
+          } else if (picture_base64 !== undefined) {
+            const isDataUrl = picture_base64.startsWith("data:");
             const mime = picture_mime_type ?? (isDataUrl ? undefined : "image/jpeg");
             data = await client.groups.setPicture(
               input.group_id,
               compact({
-                fileDataUrl: isDataUrl ? b64 : `data:${mime};base64,${b64}`,
+                fileDataUrl: isDataUrl ? picture_base64 : `data:${mime};base64,${picture_base64}`,
                 fileMimeType: picture_mime_type,
               }),
             );
+          } else {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    status: 400,
+                    code: "bad_request",
+                    message: "groups.set_picture needs exactly one of `picture_url` (https) or `picture_base64`.",
+                  }),
+                },
+              ],
+            };
           }
           break;
         }

@@ -1,14 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
 import groupsTool from "../src/tool-defs/tools/groups";
-import type { BlueticksSurface } from "../src/tool-defs/surface";
+import type { BlueticksGroupsApi, BlueticksSurface } from "../src/tool-defs/surface";
 
 function surface() {
-  const groups = {
+  const groups: BlueticksGroupsApi = {
+    list: vi.fn().mockResolvedValue({}),
+    get: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue({}),
+    update: vi.fn().mockResolvedValue({}),
+    leave: vi.fn().mockResolvedValue({}),
     getPicture: vi.fn().mockResolvedValue({ url: "https://cdn.test/p.jpg" }),
     setPicture: vi.fn().mockResolvedValue({ id: "g@g.us" }),
     removePicture: vi.fn().mockResolvedValue({ ok: true }),
   };
-  return { groups, client: { groups } as unknown as BlueticksSurface };
+  const client: Pick<BlueticksSurface, "groups"> = { groups };
+  return { groups, client };
 }
 
 describe("groups picture actions", () => {
@@ -49,6 +55,13 @@ describe("groups picture actions", () => {
     expect(groups.setPicture).toHaveBeenCalledWith("g@g.us", {
       fileDataUrl: "data:image/png;base64,QUJD",
     });
+  });
+
+  it("set_picture with neither source is a 400 error and never calls the SDK", async () => {
+    const { groups, client } = surface();
+    const res = await groupsTool.dispatch({ action: "set_picture", group_id: "g@g.us" }, client);
+    expect(res.isError).toBe(true);
+    expect(groups.setPicture).not.toHaveBeenCalled();
   });
 
   it("the input schema lists the three picture actions", () => {
