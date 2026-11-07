@@ -1,7 +1,7 @@
 {
   "name": "blueticks",
   "description": "Read WhatsApp chats and send or schedule messages from your own number, through Blueticks.",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "author": { "name": "Blueticks", "email": "support@blueticks.co" },
   "homepage": "https://blueticks.co/mcp",
   "repository": "https://github.com/serenix-com/blueticks-mcp",
