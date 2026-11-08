@@ -35,12 +35,49 @@ export interface ManifestTool {
   dispatch(input: unknown, client: BlueticksSurface): Promise<ToolResult>;
 }
 
-interface SourceTool {
+interface SourceTool<I extends { action: string } = { action: string }> {
   name: string;
   description: string;
   inputSchema: { type: "object"; properties: Record<string, unknown> };
-  annotations: Readonly<Record<string, { readOnlyHint?: boolean }>>;
-  dispatch(input: never, client: BlueticksSurface): Promise<ToolResult>;
+  annotations: Readonly<Record<string, { readOnlyHint?: boolean; destructiveHint?: boolean }>>;
+  dispatch(input: I, client: BlueticksSurface): Promise<ToolResult>;
+}
+
+/** A tool with its per-tool input type erased behind a runtime action check. */
+interface Source {
+  name: string;
+  description: string;
+  inputSchema: SourceTool["inputSchema"];
+  annotations: SourceTool["annotations"];
+  dispatch(input: unknown, client: BlueticksSurface): Promise<ToolResult>;
+}
+
+function hasAction(input: unknown, actions: ReadonlySet<string>): input is { action: string } {
+  if (typeof input !== "object" || input === null || !("action" in input)) return false;
+  return typeof input.action === "string" && actions.has(input.action);
+}
+
+/** Erase a tool's own input type; unknown actions are rejected before dispatch. */
+function toSource<I extends { action: string }>(
+  tool: SourceTool<I>,
+  isInput: (input: { action: string }) => input is I,
+): Source {
+  const actions = new Set(Object.keys(tool.annotations));
+  return {
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    annotations: tool.annotations,
+    dispatch(input, client) {
+      if (!hasAction(input, actions) || !isInput(input)) {
+        return Promise.resolve({
+          isError: true,
+          content: [{ type: "text", text: JSON.stringify({ error: "invalid_input" }) }],
+        });
+      }
+      return tool.dispatch(input, client);
+    },
+  };
 }
 
 const HALF_HEADERS: Readonly<Record<string, Readonly<Record<ToolHalf, string>>>> = {
@@ -59,13 +96,8 @@ const HINTS: Readonly<Record<ToolHalf, ToolHints>> = {
   write: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
 };
 
-const asDispatch = (
-  tool: SourceTool,
-): ((input: unknown, client: BlueticksSurface) => Promise<ToolResult>) =>
-  tool.dispatch as unknown as (input: unknown, client: BlueticksSurface) => Promise<ToolResult>;
-
 /** Keep the description's header plus only the `  - <action>:` blocks in `keep`. */
-function describeHalf(source: SourceTool, half: ToolHalf, keep: ReadonlySet<string>): string {
+function describeHalf(source: Source, half: ToolHalf, keep: ReadonlySet<string>): string {
   const lines = source.description.split("\n");
   const out: string[] = [HALF_HEADERS[source.name]?.[half] ?? "", "Available actions:"];
   let inKept = false;
@@ -83,9 +115,9 @@ function describeHalf(source: SourceTool, half: ToolHalf, keep: ReadonlySet<stri
   return out.join("\n");
 }
 
-function splitTool(source: SourceTool): ManifestTool[] {
+function splitTool(source: Source): ManifestTool[] {
   const all = Object.keys(source.annotations);
-  const dispatch = asDispatch(source);
+  const { dispatch } = source;
   const isRead = (a: string): boolean => source.annotations[a]?.readOnlyHint === true;
   const actions: Record<ToolHalf, string[]> = {
     read: all.filter(isRead),
@@ -108,7 +140,7 @@ function splitTool(source: SourceTool): ManifestTool[] {
       },
       annotations: HINTS[half],
       async dispatch(input, client) {
-        const action = (input as { action?: unknown } | null | undefined)?.action;
+        const action = typeof input === "object" && input !== null && "action" in input ? input.action : undefined;
         if (typeof action !== "string" || !own.has(action)) {
           const where = typeof action === "string" && all.includes(action) ? ` Use '${sibling}' for '${action}'.` : "";
           return {
@@ -130,24 +162,28 @@ function splitTool(source: SourceTool): ManifestTool[] {
   });
 }
 
-const whole = (tool: SourceTool): ManifestTool => ({
+const whole = (tool: Source): ManifestTool => ({
   name: tool.name,
   description: tool.description,
   inputSchema: tool.inputSchema,
-  dispatch: asDispatch(tool),
+  dispatch: tool.dispatch,
 });
+
+// The per-tool input unions are validated by the Blueticks API; the guard only
+// confirms the action is one the tool declares (checked in `toSource`).
+const trustApi = <I extends { action: string }>(_input: { action: string }): _input is I => true;
 
 export function buildToolList(): ManifestTool[] {
   return [
-    ...splitTool(scheduledMessagesTool as unknown as SourceTool),
-    ...splitTool(chatsTool as unknown as SourceTool),
-    whole(contactsTool as unknown as SourceTool),
-    whole(groupsTool as unknown as SourceTool),
-    whole(audiencesTool as unknown as SourceTool),
-    whole(campaignsTool as unknown as SourceTool),
-    whole(webhooksTool as unknown as SourceTool),
-    whole(engineTool as unknown as SourceTool),
-    whole(utilsTool as unknown as SourceTool),
+    ...splitTool(toSource(scheduledMessagesTool, trustApi)),
+    ...splitTool(toSource(chatsTool, trustApi)),
+    whole(toSource(contactsTool, trustApi)),
+    whole(toSource(groupsTool, trustApi)),
+    whole(toSource(audiencesTool, trustApi)),
+    whole(toSource(campaignsTool, trustApi)),
+    whole(toSource(webhooksTool, trustApi)),
+    whole(toSource(engineTool, trustApi)),
+    whole(toSource(utilsTool, trustApi)),
   ];
 }
 

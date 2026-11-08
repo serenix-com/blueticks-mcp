@@ -71,6 +71,10 @@ Eleven tools. Each takes an `action` argument. `chats` and `scheduled_messages` 
 
 The hosted connector at `https://api.blueticks.co/mcp` has its own tool manifest, which can differ from this package. See https://blueticks.co/mcp for that list.
 
+### Upgrading to 1.3.0
+
+1.3.0 renames the mixed tools to the hosted connector's names: `chats` is now `chats_read` and `chats_write`, and `scheduled_messages` is now `scheduled_messages_read` and `scheduled_messages_write`. Update any allow-lists or prompts that reference the old names. Some hosted actions (`get_latest`, `get_poll_results`, `react`, and others) are not in this package yet and arrive in a later release (#1542).
+
 ## Pricing and limits
 
 The connector and API access are tied to your Blueticks plan. Current plans and what each includes: https://blueticks.co/pricing. Requests are made through the Blueticks API with your key, so the limits of that API and plan apply.

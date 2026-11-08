@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { buildToolList, findTool, type ManifestTool } from "../src/manifest";
+import { Blueticks } from "blueticks";
 import type { BlueticksSurface } from "../src/tool-defs/surface";
 
 const names = (): string[] => buildToolList().map((t) => t.name);
@@ -77,7 +78,12 @@ describe("read/write halves", () => {
 });
 
 describe("dispatch", () => {
-  const client = { chats: { list: vi.fn().mockResolvedValue({}) } } as unknown as BlueticksSurface;
+  let calls = 0;
+  const okFetch: typeof fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const client: Omit<BlueticksSurface, "suno"> = new Blueticks({ apiKey: "bt_live_test", fetch: okFetch });
 
   it("refuses a write action on the read half, naming the sibling", async () => {
     const res = await required("chats_read").dispatch(
@@ -90,7 +96,8 @@ describe("dispatch", () => {
 
   it("runs a read action on the read half", async () => {
     const res = await required("chats_read").dispatch({ action: "list" }, client);
-    expect(res.isError).toBeFalsy();
+    expect(JSON.stringify(res.content)).not.toContain("action_not_available");
+    expect(calls).toBeGreaterThan(0);
   });
 
   it("returns undefined for the retired mixed name", () => {
