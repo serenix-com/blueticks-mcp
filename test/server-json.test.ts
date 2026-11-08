@@ -6,13 +6,13 @@ import { readFileSync } from "node:fs";
 
 interface PackageJson {
   version: string;
-  mcpName: string;
 }
 interface ServerJson {
   name: string;
   description: string;
   version: string;
-  packages: Array<{ registryType: string; identifier: string; version: string }>;
+  packages?: unknown;
+  remotes: Array<{ type: string; url: string }>;
 }
 
 function readJson<T>(rel: string): T {
@@ -23,17 +23,22 @@ describe("server.json", () => {
   const pkg = readJson<PackageJson>("../package.json");
   const server = readJson<ServerJson>("../server.json");
 
-  it("uses the package mcpName as the registry name", () => {
-    expect(server.name).toBe(pkg.mcpName);
+  // The live registry entry is the remote-only co.blueticks/blueticks (DNS-auth
+  // namespace). package.json mcpName only matters for an npm `packages` entry,
+  // which server.json deliberately does not carry.
+  it("uses the co.blueticks registry name", () => {
+    expect(server.name).toBe("co.blueticks/blueticks");
   });
 
-  it("tracks the package version in both places", () => {
+  it("tracks the package version", () => {
     expect(server.version).toBe(pkg.version);
-    expect(server.packages[0]?.version).toBe(pkg.version);
   });
 
-  it("points at the npm package", () => {
-    expect(server.packages[0]).toMatchObject({ registryType: "npm", identifier: "@blueticks/mcp" });
+  it("is remote-only: no npm packages entry, one streamable-http remote", () => {
+    expect(server.packages).toBeUndefined();
+    expect(server.remotes).toEqual([
+      { type: "streamable-http", url: "https://api.blueticks.co/mcp" },
+    ]);
   });
 
   it("keeps the description within the registry's 100-char limit", () => {
