@@ -43,6 +43,9 @@ jobs:
       - run: npm test -- --run
       - run: npm publish --access public
 
+  # NOTE: server.json is now named co.blueticks/blueticks, which needs DNS auth
+  # (mcp-publisher login dns), not github-oidc; this job's login step below still
+  # uses github-oidc and will fail for that name until it is changed (op: DNS key).
   # Publishes server.json to the official MCP Registry. The io.github.serenix-com/*
   # namespace is an org namespace, so it needs GitHub Actions OIDC; the interactive
   # `mcp-publisher login github` gets a 403. No secret is used here.
@@ -60,8 +63,8 @@ jobs:
           set -euo pipefail
           v="$(jq -r .version package.json)"
           test "$(jq -r .version server.json)" = "$v"
-          test "$(jq -r '.packages[0].version' server.json)" = "$v"
-          test "$(jq -r .mcpName package.json)" = "$(jq -r .name server.json)"
+          # server.json is remote-only under co.blueticks/blueticks; no packages entry,
+          # so packages[0].version and package.json mcpName are not checked.
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Download and verify mcp-publisher
         run: |
