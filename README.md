@@ -60,7 +60,7 @@ Eleven tools. Each takes an `action` argument. `chats` and `scheduled_messages` 
 | `chats_read` | `list`, `search`, `get`, `list_messages`, `get_media`, `get_participants` |
 | `chats_write` | `mark_read`, `archive`, `unarchive`, `load_more_history`, `send_message_text`, `send_message_media`, `send_message_poll` |
 | `contacts` | `list`, `common_groups` |
-| `groups` | `list`, `get`, `create`, `update`, `leave` |
+| `groups` | `list`, `get`, `create`, `update`, `leave`, `get_picture`, `set_picture`, `remove_picture` |
 | `scheduled_messages_read` | `get`, `list`, `ack` |
 | `scheduled_messages_write` | `send`, `update`, `cancel` |
 | `audiences` | `list`, `create`, `get`, `update`, `delete`, `append_contacts`, `update_contact`, `remove_contact` |
