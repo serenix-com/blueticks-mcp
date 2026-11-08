@@ -31,14 +31,13 @@ describe("the User-Agent actually sent on the wire", () => {
   it("reaches the API as a delimited blueticks-mcp token", async () => {
     const { Blueticks } = await import("blueticks");
     let seen = "";
-    const fakeFetch = (async (_url: unknown, init: { headers?: Record<string, string> }) => {
-      const h = init?.headers ?? {};
-      seen = h["User-Agent"] ?? h["user-agent"] ?? "";
+    const fakeFetch: typeof fetch = async (_url, init) => {
+      seen = new Headers(init?.headers).get("user-agent") ?? "";
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
-    }) as unknown as typeof fetch;
+    };
 
     const client = new Blueticks({
       apiKey: "bt_live_test",

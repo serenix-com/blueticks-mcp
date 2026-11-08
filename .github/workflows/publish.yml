@@ -1,6 +1,5 @@
-# DO NOT push v* tags until the registry job's DNS login lands (see the issue on
-# this repo "publish.yml registry job needs DNS auth for co.blueticks/*"). A tag
-# push runs npm publish and then fails at the registry login.
+# A v* tag publishes to npm only. The MCP Registry job is skipped on tag pushes until
+# DNS auth lands (#1528); run it by hand with workflow_dispatch + registry_only.
 name: Publish to npm
 
 on:
@@ -53,8 +52,11 @@ jobs:
   # namespace is an org namespace, so it needs GitHub Actions OIDC; the interactive
   # `mcp-publisher login github` gets a 403. No secret is used here.
   registry:
+    # Skipped on tag pushes so a failing registry login can never block or fail the npm
+    # release. Re-enable the tag trigger (`needs.publish.result == 'success'`) once
+    # `mcp-publisher login dns` is wired for co.blueticks/blueticks (#1528).
     needs: publish
-    if: ${{ always() && (needs.publish.result == 'success' || inputs.registry_only) }}
+    if: ${{ always() && inputs.registry_only == true }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write

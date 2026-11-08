@@ -7,38 +7,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { resolveApiKey, getClient } from "./client";
 
-// Tool defs are VENDORED here at src/tool-defs (see src/tool-defs/VENDORED.md).
-// Source of truth is the backend: whatsapp-scheduler-backend
-// src/mcp-tool-defs (prod). We keep a checked-in copy rather than a submodule
-// because that repo is private — CI can't clone a private submodule with the
-// default token, and the published @blueticks/mcp package must build
-// self-contained. Re-sync the copy when the backend tool-defs change.
-import {
-  audiencesTool,
-  campaignsTool,
-  chatsTool,
-  contactsTool,
-  engineTool,
-  groupsTool,
-  scheduledMessagesTool,
-  utilsTool,
-  webhooksTool,
-  type BlueticksSurface,
-} from "./tool-defs";
+// Tool defs are VENDORED at src/tool-defs (see src/tool-defs/VENDORED.md). The
+// advertised list (hosted-default names; chats and scheduled_messages split into
+// _read/_write) is built in ./manifest.
+import { buildToolList, findTool } from "./manifest";
+import type { BlueticksSurface } from "./tool-defs";
 
-const tools = [
-  scheduledMessagesTool,
-  chatsTool,
-  contactsTool,
-  groupsTool,
-  audiencesTool,
-  campaignsTool,
-  webhooksTool,
-  engineTool,
-  utilsTool,
-] as const;
-
-type AnyTool = (typeof tools)[number];
+const tools = buildToolList();
 
 async function main(): Promise<void> {
   const apiKey = resolveApiKey(process.argv.slice(2), process.env);
@@ -66,26 +41,20 @@ async function main(): Promise<void> {
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
+      ...(t.annotations && { annotations: t.annotations }),
     })),
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const tool = tools.find((t) => t.name === request.params.name) as AnyTool | undefined;
+    const tool = findTool(request.params.name);
     if (!tool) {
       return {
         isError: true,
         content: [{ type: "text", text: `Unknown tool: ${request.params.name}` }],
       } as CallToolResult;
     }
-    // TypeScript can't represent the union of every tool's dispatch
-    // input once you have ~10 tools × multi-variant actions (TS2590).
-    // Cast through a relaxed signature; runtime safety is enforced by
-    // the per-tool zod schema each dispatcher applies internally.
-    type Dispatch = (input: unknown, client: BlueticksSurface) => Promise<CallToolResult>;
-    return (tool.dispatch as unknown as Dispatch)(
-      request.params.arguments,
-      client,
-    );
+    const result = await tool.dispatch(request.params.arguments, client);
+    return { ...result };
   });
 
   const transport = new StdioServerTransport();

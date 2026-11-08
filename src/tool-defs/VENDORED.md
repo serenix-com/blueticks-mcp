@@ -22,6 +22,6 @@ npm run typecheck && npm run build
 Last synced from backend `prod` commit `59108cef` (2.0 SDK surface: engines.list,
 messages.{send,list,getMedia,loadOlder}, offset pagination).
 
-Note: the standalone server (`src/index.ts`) registers 9 tools and does **not**
+Note: the standalone server (`src/index.ts`) advertises 11 tools (see `src/manifest.ts`: `chats` and `scheduled_messages` are split into `_read`/`_write` like the hosted default manifest) and does **not**
 register `suno` — `suno.ts` is retained only so the vendored copy matches the
 backend verbatim.

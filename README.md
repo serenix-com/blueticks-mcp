@@ -53,14 +53,16 @@ Use the same `command` / `args` / `env` block in the client's MCP config file.
 
 ## Tools
 
-Nine tools. Each takes an `action` argument. Action names below are read from this package's tool definitions (`src/tool-defs/tools/`).
+Eleven tools. Each takes an `action` argument. `chats` and `scheduled_messages` are listed as a read-only `_read` half and a `_write` half, matching the hosted connector. Action names below are read from this package's tool definitions (`src/tool-defs/tools/`).
 
 | Tool | Actions |
 |---|---|
-| `chats` | `list`, `search`, `get`, `list_messages`, `mark_read`, `archive`, `unarchive`, `get_media`, `get_participants`, `load_more_history`, `send_message_text`, `send_message_media`, `send_message_poll` |
+| `chats_read` | `list`, `search`, `get`, `list_messages`, `get_media`, `get_participants` |
+| `chats_write` | `mark_read`, `archive`, `unarchive`, `load_more_history`, `send_message_text`, `send_message_media`, `send_message_poll` |
 | `contacts` | `list`, `common_groups` |
 | `groups` | `list`, `get`, `create`, `update`, `leave` |
-| `scheduled_messages` | `send`, `get`, `list`, `update`, `cancel`, `ack` |
+| `scheduled_messages_read` | `get`, `list`, `ack` |
+| `scheduled_messages_write` | `send`, `update`, `cancel` |
 | `audiences` | `list`, `create`, `get`, `update`, `delete`, `append_contacts`, `update_contact`, `remove_contact` |
 | `campaigns` | `list`, `create`, `get`, `pause`, `resume`, `cancel` |
 | `webhooks` | `list`, `create`, `get`, `update`, `delete` |
@@ -68,6 +70,10 @@ Nine tools. Each takes an `action` argument. Action names below are read from th
 | `utils` | `current_date_time` |
 
 The hosted connector at `https://api.blueticks.co/mcp` has its own tool manifest, which can differ from this package. See https://blueticks.co/mcp for that list.
+
+### Upgrading to 1.3.0
+
+1.3.0 renames the mixed tools to the hosted connector's names: `chats` is now `chats_read` and `chats_write`, and `scheduled_messages` is now `scheduled_messages_read` and `scheduled_messages_write`. Update any allow-lists or prompts that reference the old names. Some hosted actions (`get_latest`, `get_poll_results`, `react`, and others) are not in this package yet and arrive in a later release (#1542).
 
 ## Pricing and limits
 
