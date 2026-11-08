@@ -1,3 +1,6 @@
+# DO NOT push v* tags until the registry job's DNS login lands (see the issue on
+# this repo "publish.yml registry job needs DNS auth for co.blueticks/*"). A tag
+# push runs npm publish and then fails at the registry login.
 name: Publish to npm
 
 on:

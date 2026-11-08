@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "co.blueticks/blueticks",
   "title": "Blueticks WhatsApp MCP",
-  "description": "WhatsApp MCP on your own number: read chats, send and schedule messages.",
+  "description": "WhatsApp MCP on your own number: read chats, search contacts, send messages.",
   "version": "1.2.0",
   "websiteUrl": "https://blueticks.co/mcp",
   "repository": {
