@@ -4,7 +4,7 @@
 
 ## 1. Get an API key
 
-Ask the user for their Blueticks API key. They create it in the Blueticks web app (https://app.blueticks.co) under their account's API settings. API access depends on their plan (https://blueticks.co/pricing). Do not invent a key. The user must also have a connected WhatsApp number.
+Ask the user for their Blueticks API key. They create it on the **API** page of the Blueticks web app (https://app.blueticks.co). API access depends on their plan (https://blueticks.co/pricing). Do not invent a key. The user must also have a connected WhatsApp number.
 
 ## 2. Add the server to `cline_mcp_settings.json`
 
