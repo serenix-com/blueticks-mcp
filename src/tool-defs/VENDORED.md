@@ -20,7 +20,7 @@ The script copies `src/mcp-tool-defs`, plus `src/mcp/tools/{default-descriptions
 that point outside the tool-defs onto `backend-shims.ts`, applies the strict-typing fixes, and fails
 if any outside import is left.
 
-Last synced from backend `prod` commit `14ff1cf`.
+Last synced from backend `prod` commit `7c3637f` (#1597: `send_at` accepts a UTC offset).
 
 The tools call the `BlueticksSurface` interface (`surface.ts`). Here it is implemented by
 `src/http/surface.ts` over the `/v1` routes, mirroring the backend's in-process adapter

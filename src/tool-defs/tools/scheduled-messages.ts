@@ -30,7 +30,7 @@ const SendArgs = z
       })
       .strict()
       .optional(),
-    send_at: z.string().datetime().optional(),
+    send_at: z.string().datetime({ offset: true }).optional(),
     // #734 — repeat the scheduled message (requires send_at; exactly one of ends_after / ends_on).
     recurrence: z
       .object({
@@ -98,7 +98,7 @@ const UpdateArgs = z
     text: z.string().min(1).optional(),
     media_url: z.string().url().optional(),
     media_caption: z.string().optional(),
-    send_at: z.string().datetime().optional(),
+    send_at: z.string().datetime({ offset: true }).optional(),
   })
   .strict();
 
