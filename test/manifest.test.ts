@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildToolList, findTool, type ManifestTool } from "../src/manifest";
-import { Blueticks } from "blueticks";
-import type { BlueticksSurface } from "../src/tool-defs/surface";
+import { buildServerInstructions, buildToolList, findTool, type ManifestTool } from "../src/manifest";
+import { createClient } from "../src/client";
+import { SPLIT_TOOL_DESCRIPTIONS } from "../src/tool-defs/hosted/default-descriptions";
+import { fakeFetch } from "./fake-fetch";
 
 const names = (): string[] => buildToolList().map((t) => t.name);
 
@@ -10,14 +11,14 @@ function actionsOf(tool: ManifestTool): string[] {
   return props?.action?.enum ?? [];
 }
 
-function required(name: string): ManifestTool {
-  const tool = findTool(name);
+function listed(name: string): ManifestTool {
+  const tool = buildToolList().find((t) => t.name === name);
   if (!tool) throw new Error(`missing tool ${name}`);
   return tool;
 }
 
 describe("hosted-default tool names", () => {
-  it("lists the split names, not the mixed ones", () => {
+  it("lists what an API-key connection sees on hosted", () => {
     expect(names().sort()).toEqual(
       [
         "audiences",
@@ -29,28 +30,36 @@ describe("hosted-default tool names", () => {
         "groups",
         "scheduled_messages_read",
         "scheduled_messages_write",
+        "tasks",
         "utils",
         "webhooks",
       ].sort(),
     );
+  });
+
+  it("does not list the mixed names, but still accepts them on call", () => {
     expect(names()).not.toContain("chats");
     expect(names()).not.toContain("scheduled_messages");
+    expect(findTool("chats")).toBeDefined();
+    expect(findTool("scheduled_messages")).toBeDefined();
   });
 });
 
 describe("read/write halves", () => {
   it("chats_read holds only read-only actions", () => {
-    expect(actionsOf(required("chats_read")).sort()).toEqual(
-      ["get", "get_media", "get_participants", "list", "list_messages", "search"].sort(),
+    expect(actionsOf(listed("chats_read")).sort()).toEqual(
+      ["get", "get_latest", "get_media", "get_participants", "get_poll_results", "list", "list_messages", "search"].sort(),
     );
   });
 
   it("chats_write holds the rest", () => {
-    expect(actionsOf(required("chats_write")).sort()).toEqual(
+    expect(actionsOf(listed("chats_write")).sort()).toEqual(
       [
         "archive",
         "load_more_history",
         "mark_read",
+        "react",
+        "send_button_reply",
         "send_message_media",
         "send_message_poll",
         "send_message_text",
@@ -60,47 +69,64 @@ describe("read/write halves", () => {
   });
 
   it("scheduled_messages halves partition the actions", () => {
-    expect(actionsOf(required("scheduled_messages_read")).sort()).toEqual(["ack", "get", "list"]);
-    expect(actionsOf(required("scheduled_messages_write")).sort()).toEqual(["cancel", "send", "update"]);
+    expect(actionsOf(listed("scheduled_messages_read")).sort()).toEqual(["ack", "get", "list"]);
+    expect(actionsOf(listed("scheduled_messages_write")).sort()).toEqual(["cancel", "send", "update"]);
   });
 
   it("marks hints: read is read-only, write is destructive", () => {
-    expect(required("chats_read").annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(required("chats_write").annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(listed("chats_read").annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(listed("chats_write").annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
   });
 
-  it("description of a half names only its own actions", () => {
-    const read = required("chats_read").description;
-    expect(read).toContain("list_messages");
-    expect(read).not.toContain("send_message_text");
-    expect(required("chats_write").description).not.toContain("  - list_messages");
+  it("uses the hosted listed descriptions", () => {
+    expect(listed("chats_read").description).toBe(SPLIT_TOOL_DESCRIPTIONS.chats.read);
+    expect(listed("scheduled_messages_write").description).toBe(SPLIT_TOOL_DESCRIPTIONS.scheduledMessages.write);
+  });
+
+  it("each half's description names exactly its own actions", () => {
+    for (const name of ["chats_read", "chats_write", "scheduled_messages_read", "scheduled_messages_write"]) {
+      const tool = listed(name);
+      const described = [...tool.description.matchAll(/^ {2}- ([\w /]+):/gm)].flatMap((m) =>
+        (m[1] ?? "").split(" / ").map((s) => s.trim()),
+      );
+      expect(described.sort()).toEqual(actionsOf(tool).sort());
+    }
+  });
+});
+
+describe("server instructions", () => {
+  it("carry the untrusted-content notice and guidance for the listed tools only", () => {
+    const text = buildServerInstructions();
+    expect(text).toContain("untrusted data");
+    expect(text).toContain("chats_read / chats_write:");
+    expect(text).toContain("tasks:");
+    expect(text).not.toContain("agents:");
+    expect(text).not.toContain("calendar:");
   });
 });
 
 describe("dispatch", () => {
-  let calls = 0;
-  const okFetch: typeof fetch = async () => {
-    calls += 1;
-    return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } });
-  };
-  const client: Omit<BlueticksSurface, "suno"> = new Blueticks({ apiKey: "bt_live_test", fetch: okFetch });
+  const f = fakeFetch([{ method: "GET", path: "/v1/chats", body: { data: [] } }]);
+  const client = createClient("bt_live_test", { baseUrl: "https://api.test", fetch: f.fetch, maxRetries: 0 });
 
   it("refuses a write action on the read half, naming the sibling", async () => {
-    const res = await required("chats_read").dispatch(
+    const res = await listed("chats_read").dispatch(
       { action: "send_message_text", chat_id: "1@c.us", text: "hi" },
       client,
     );
     expect(res.isError).toBe(true);
     expect(JSON.stringify(res.content)).toContain("chats_write");
+    expect(f.seen).toHaveLength(0);
   });
 
   it("runs a read action on the read half", async () => {
-    const res = await required("chats_read").dispatch({ action: "list" }, client);
-    expect(JSON.stringify(res.content)).not.toContain("action_not_available");
-    expect(calls).toBeGreaterThan(0);
+    const res = await listed("chats_read").dispatch({ action: "list" }, client);
+    expect(res.isError).toBeFalsy();
+    expect(f.seen.map((r) => r.path)).toContain("/v1/chats");
   });
 
-  it("returns undefined for the retired mixed name", () => {
-    expect(findTool("chats")).toBeUndefined();
+  it("rejects an action the tool does not declare", async () => {
+    const res = await listed("utils").dispatch({ action: "nope" }, client);
+    expect(res.isError).toBe(true);
   });
 });

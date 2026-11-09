@@ -10,7 +10,7 @@ const ContactInput = z
   .strict();
 
 const ListArgs = z
-  .object({ limit: z.number().int().min(1).max(200).optional(), skip: z.number().int().min(0).optional() })
+  .object({ limit: z.number().int().min(1).max(200).optional(), cursor: z.string().optional() })
   .strict();
 const CreateArgs = z.object({ name: z.string().min(1) }).strict();
 const GetArgs = z.object({ audience_id: AudienceId }).strict();
@@ -73,7 +73,7 @@ const audiencesTool = {
     "  - append_contacts: add contacts (to + optional variables) to an audience",
     "  - update_contact / remove_contact: edit or remove a single contact within an audience",
     "",
-    "Phone format: `to` must be in international format (e.g. +14155551234). JID form (12345@c.us) is rejected here.",
+    "Contact format: `to` accepts a phone (+14155551234), an individual WhatsApp JID (14155551234@c.us), a GROUP id (…@g.us), or a NEWSLETTER / channel id (…@newsletter) — all are valid audience/campaign contacts. A group or newsletter is delivered to that chat directly through the same send path as an individual. A raw name is NOT valid — resolve it to a JID first (via a contacts/chats lookup).",
     "Variables: each key on `variables` becomes a `{key}` token usable in campaign templates (case-insensitive).",
     "Custom tokens override built-ins: setting variables.firstName='Doug' makes `{firstName}` resolve to Doug instead of the WA profile name.",
     "Built-ins always available even without variables: whatsappname, displayname, phone, mobile.",
@@ -83,6 +83,8 @@ const audiencesTool = {
     "  - append_contacts: 'add +972544325389 to the Leads audience with firstName=Doug, product=Premium'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
+  // Per-action argument schemas (clients that expose one tool per action).
+  actionSchemas: actions,
   annotations: {
     list: { readOnlyHint: true },
     get: { readOnlyHint: true },
@@ -99,7 +101,7 @@ const audiencesTool = {
       switch (input.action) {
         case "list":
           data = await client.audiences.list(
-            compact({ limit: input.limit, skip: input.skip }),
+            compact({ limit: input.limit, cursor: input.cursor }),
           );
           break;
         case "create":

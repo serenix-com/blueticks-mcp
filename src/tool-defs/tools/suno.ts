@@ -25,6 +25,17 @@ const actions = {
     file_name: z.string().optional(),
   }).strict(),
   get_account: z.object({}).strict(),
+  make_songs: z.object({
+    chat_id: z.string().min(1),
+    message_key: z.string().min(1).optional(),
+    lyrics: z.string().optional(),
+    style: z.string().max(300).optional(),
+    negative_style: z.string().max(300).optional(),
+    vocal_gender: z.enum(["m", "f"]).optional(),
+    weirdness: z.number().min(0).max(1).optional(),
+    style_influence: z.number().min(0).max(1).optional(),
+    audio_influence: z.number().min(0).max(1).optional(),
+  }).strict(),
 };
 
 type SunoInput =
@@ -45,7 +56,19 @@ type SunoInput =
     }
   | { action: "get_song"; clip_id: string }
   | { action: "upload_audio"; audio_url?: string; audio_base64?: string; file_name?: string }
-  | { action: "get_account" };
+  | { action: "get_account" }
+  | {
+      action: "make_songs";
+      chat_id: string;
+      message_key?: string;
+      lyrics?: string;
+      style?: string;
+      negative_style?: string;
+      vocal_gender?: "m" | "f";
+      weirdness?: number;
+      style_influence?: number;
+      audio_influence?: number;
+    };
 
 const sunoTool = {
   name: "suno" as const,
@@ -85,6 +108,15 @@ const sunoTool = {
     "  - get_song: poll ONE clip by clip_id. When status='complete', audio_url is the MP3.",
     "  - upload_audio: upload reference audio (audio_url or base64 audio_base64) → upload_id.",
     "  - get_account: remaining Suno credits / plan.",
+    "  - make_songs (agent sessions): {chat_id, message_key?, lyrics?} starts",
+    "      making 4 songs (2 female voice, 2 male voice) from the exact lyrics and/or the customer's",
+    "      recording (message_key of their audio message) and returns at once. The finished songs are",
+    "      sent into chat_id automatically in about 4 minutes, followed by a message with their titles;",
+    "      a rejection by Suno is reported to the chat the same way. No lyrics + a recording = music only.",
+    "      Production the person asks for: style (Suno 'Styles' text — genre, tempo, instruments, mood;",
+    "      empty by default), negative_style (styles to exclude), vocal_gender ('m'|'f' = all songs in",
+    "      that voice; default 2 female + 2 male), weirdness / style_influence / audio_influence (0..1,",
+    "      defaults 0.16 / 0.8 / 0.72). Send a field ONLY when the person asked to change it.",
     "",
     "Notes:",
     "  - Suno returns 2 song variants per request — share both with the user.",
@@ -97,6 +129,7 @@ const sunoTool = {
     get_song: { readOnlyHint: true },
     upload_audio: {},
     get_account: { readOnlyHint: true },
+    make_songs: {},
   },
   async dispatch(input: SunoInput, client: BlueticksSurface): Promise<ToolResult> {
     try {
@@ -156,6 +189,14 @@ const sunoTool = {
         case "get_account":
           data = await client.suno.account();
           break;
+        case "make_songs": {
+          if (!client.suno.makeSongs) {
+            throw Object.assign(new Error("make_songs is only available to agent sessions."), { code: 400, name: "BadRequest" });
+          }
+          const { action: _a, ...body } = input;
+          data = await client.suno.makeSongs(body);
+          break;
+        }
       }
       return { content: [{ type: "text", text: JSON.stringify(data ?? {}) }] };
     } catch (err) {

@@ -5,35 +5,26 @@ import {
   ListToolsRequestSchema,
   type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { resolveApiKey, getClient } from "./client";
+import { createClient, resolveApiKey } from "./client";
 
 // Tool defs are VENDORED at src/tool-defs (see src/tool-defs/VENDORED.md). The
 // advertised list (hosted-default names; chats and scheduled_messages split into
 // _read/_write) is built in ./manifest.
-import { buildToolList, findTool } from "./manifest";
+import { buildServerInstructions, buildToolList, findTool } from "./manifest";
 import type { BlueticksSurface } from "./tool-defs";
+import pkg from "../package.json";
 
 const tools = buildToolList();
 
 async function main(): Promise<void> {
   const apiKey = resolveApiKey(process.argv.slice(2), process.env);
-  // Typed as the tool-def surface (not the concrete `Blueticks`) so any drift
-  // between what the tools call and the real SDK is a compile error: if the
-  // published `blueticks` SDK stops matching what the tools call, the build
-  // fails here rather than at runtime with "tool execution failed".
-  //
-  // `suno` is omitted: it's a backend-in-process-adapter surface (uploadAudio),
-  // not part of the published SDK's SunoResource (uploadReference), and this
-  // standalone server does not register the suno tool. Every tool it DOES ship
-  // still gets full drift-checking against the real SDK.
-  const client: Omit<BlueticksSurface, "suno"> = getClient(
-    apiKey,
-    process.env.BLUETICKS_BASE_URL,
-  );
+  // Typed as the tool-def surface, so a drift between what the vendored tools
+  // call and what the /v1 adapter implements is a compile error.
+  const client: BlueticksSurface = createClient(apiKey, { baseUrl: process.env.BLUETICKS_BASE_URL });
 
   const server = new Server(
-    { name: "@blueticks/mcp", version: "0.1.0" },
-    { capabilities: { tools: {} } },
+    { name: "@blueticks/mcp", version: pkg.version },
+    { capabilities: { tools: {} }, instructions: buildServerInstructions() },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

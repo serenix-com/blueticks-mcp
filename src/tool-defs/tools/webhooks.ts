@@ -25,7 +25,7 @@ const Event = z
   .or(z.string().min(1));
 
 const ListArgs = z
-  .object({ limit: z.number().int().min(1).max(200).optional(), skip: z.number().int().min(0).optional() })
+  .object({ limit: z.number().int().min(1).max(200).optional(), cursor: z.string().optional() })
   .strict();
 const CreateArgs = z
   .object({ url: z.string().url(), events: z.array(Event).min(1) })
@@ -88,7 +88,7 @@ const webhooksTool = {
       switch (input.action) {
         case "list":
           data = await client.webhooks.list(
-            compact({ limit: input.limit, skip: input.skip }),
+            compact({ limit: input.limit, cursor: input.cursor }),
           );
           break;
         case "create":

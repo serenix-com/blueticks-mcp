@@ -10,18 +10,20 @@ plus `zod` / `zod-to-json-schema`.
 
 ## Re-syncing after a backend change
 
-When the backend's `src/mcp-tool-defs` changes (new tool, changed dispatch,
-SDK-surface update), copy it back over this directory:
-
 ```sh
-cp -R <backend>/src/mcp-tool-defs/. src/tool-defs/
-# keep this VENDORED.md, then rebuild + revalidate:
-npm run typecheck && npm run build
+node scripts/sync-tool-defs.mjs <path-to-whatsapp-scheduler-backend>
+npm run typecheck && npm test && npm run build
 ```
 
-Last synced from backend `prod` commit `59108cef` (2.0 SDK surface: engines.list,
-messages.{send,list,getMedia,loadOlder}, offset pagination).
+The script copies `src/mcp-tool-defs`, plus `src/mcp/tools/{default-descriptions,tool-names}.ts` into
+`hosted/` (the hosted connector's descriptions and server instructions). It rewrites the few imports
+that point outside the tool-defs onto `backend-shims.ts`, applies the strict-typing fixes, and fails
+if any outside import is left.
 
-Note: the standalone server (`src/index.ts`) advertises 11 tools (see `src/manifest.ts`: `chats` and `scheduled_messages` are split into `_read`/`_write` like the hosted default manifest) and does **not**
-register `suno` — `suno.ts` is retained only so the vendored copy matches the
-backend verbatim.
+Last synced from backend `prod` commit `14ff1cf`.
+
+The tools call the `BlueticksSurface` interface (`surface.ts`). Here it is implemented by
+`src/http/surface.ts` over the `/v1` routes, mirroring the backend's in-process adapter
+(`src/mcp/services/in-process-blueticks.ts`). `src/manifest.ts` lists the hosted API-key defaults;
+the other vendored tools (agents, suno, calendar, ...) are kept so the copy matches the backend but
+are not registered.
