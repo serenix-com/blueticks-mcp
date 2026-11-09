@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `chats_read list_messages` now answers `no_engine_connected` ("connect WhatsApp") instead of an empty page when no WhatsApp engine is online and nothing could be read, matching the hosted connector (#1599, #21).
+
 ## 1.4.0
 
 - The server now calls the `/v1` HTTP API through its own adapter (`src/http/`) instead of the `blueticks` SDK, so its actions match the hosted connector (#1542). `BLUETICKS_BASE_URL` overrides the API host.
