@@ -23,23 +23,47 @@
 // shape (define a `tool` const with name/description/inputSchema/dispatch),
 // then add it to TOOL_DEFS below.
 
+import agentsTool from './tools/agents';
+import agentSchedulesTool from './tools/agent-schedules';
+import aiConversationTool from './tools/ai-conversation';
 import audiencesTool from './tools/audiences';
+import boardsTool from './tools/boards';
+import calendarTool from './tools/calendar';
 import campaignsTool from './tools/campaigns';
 import chatsTool from './tools/chats';
 import contactsTool from './tools/contacts';
 import engineTool from './tools/engine';
+import filesTool from './tools/files';
 import groupsTool from './tools/groups';
 import scheduledMessagesTool from './tools/scheduled-messages';
 import sunoTool from './tools/suno';
 import utilsTool from './tools/utils';
 import webhooksTool from './tools/webhooks';
+import imagesTool from './tools/images';
+import voiceTool from './tools/voice';
 
+import browsePageTool from './tools/browse-page';
+import reportCapabilityGapTool from './tools/report-capability-gap';
+import qualifyLeadTool from './tools/qualify-lead';
+
+// `calendarTool` / `imagesTool` / `browsePageTool` / `reportCapabilityGapTool` / `voiceTool` / `qualifyLeadTool` are deliberately NOT in TOOL_DEFS (the btgpt/harness
+import followupsTool from './tools/followups';
+import tasksTool from './tools/tasks';
+
+// `calendarTool` / `imagesTool` / `voiceTool` / `browsePageTool` / `reportCapabilityGapTool` / `followupsTool` / `tasksTool` (#1457, MCP-only) are deliberately NOT in TOOL_DEFS (the btgpt/harness
+// tool list): they act for the calling AGENT (token caps), so they are only
+// registered on the MCP server (shared-tool-handlers) where agent tokens arrive.
 export const TOOL_DEFS = [
+  agentsTool,
+  agentSchedulesTool,
+  aiConversationTool,
   audiencesTool,
+  boardsTool,
   campaignsTool,
   chatsTool,
   contactsTool,
   engineTool,
+  filesTool,
   groupsTool,
   scheduledMessagesTool,
   sunoTool,
@@ -48,17 +72,31 @@ export const TOOL_DEFS = [
 ] as const;
 
 export {
+  agentsTool,
+  agentSchedulesTool,
+  aiConversationTool,
   audiencesTool,
+  boardsTool,
+  browsePageTool,
+  reportCapabilityGapTool,
+  qualifyLeadTool,
+  followupsTool,
+  tasksTool,
+  calendarTool,
   campaignsTool,
   chatsTool,
   contactsTool,
   engineTool,
+  filesTool,
   groupsTool,
+  imagesTool,
+  voiceTool,
   scheduledMessagesTool,
   sunoTool,
   utilsTool,
   webhooksTool,
 };
 
-export type { BlueticksSurface, BlueticksAudiencesApi, BlueticksCampaignsApi, BlueticksChatsApi, BlueticksContactsApi, BlueticksEnginesApi, BlueticksGroupsApi, BlueticksMessagesApi, BlueticksScheduledMessagesApi, BlueticksSunoApi, BlueticksWebhooksApi } from './surface';
-export type { ToolResult } from './errors';
+export type { BlueticksSurface, BlueticksAudiencesApi, BlueticksBoardsApi, BlueticksCalendarApi, BlueticksCampaignsApi, BlueticksChatsApi, BlueticksContactsApi, BlueticksEnginesApi, BlueticksFilesApi, BlueticksGroupsApi, BlueticksMessagesApi, BlueticksSunoApi, BlueticksTasksApi, BlueticksUtilsApi, BlueticksWebhooksApi } from './surface';
+export type { ToolResult, ToolContentBlock, ToolImageMime } from './errors';
+export { toolText } from './errors';

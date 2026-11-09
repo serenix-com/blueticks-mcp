@@ -53,27 +53,32 @@ Use the same `command` / `args` / `env` block in the client's MCP config file.
 
 ## Tools
 
-Eleven tools. Each takes an `action` argument. `chats` and `scheduled_messages` are listed as a read-only `_read` half and a `_write` half, matching the hosted connector. Action names below are read from this package's tool definitions (`src/tool-defs/tools/`).
+Twelve tools. Each takes an `action` argument. `chats` and `scheduled_messages` are listed as a read-only `_read` half and a `_write` half, matching the hosted connector. Action names below are read from this package's tool definitions (`src/tool-defs/tools/`).
 
 | Tool | Actions |
 |---|---|
-| `chats_read` | `list`, `search`, `get`, `list_messages`, `get_media`, `get_participants` |
-| `chats_write` | `mark_read`, `archive`, `unarchive`, `load_more_history`, `send_message_text`, `send_message_media`, `send_message_poll` |
-| `contacts` | `list`, `common_groups` |
-| `groups` | `list`, `get`, `create`, `update`, `leave`, `get_picture`, `set_picture`, `remove_picture` |
+| `chats_read` | `list`, `get_latest`, `search`, `get`, `list_messages`, `get_media`, `get_participants`, `get_poll_results` |
+| `chats_write` | `mark_read`, `react`, `archive`, `unarchive`, `load_more_history`, `send_message_text`, `send_message_media`, `send_message_poll`, `send_button_reply` |
+| `contacts` | `list`, `get_profile_picture` |
+| `groups` | `get`, `create`, `update`, `leave`, `get_picture`, `set_picture`, `remove_picture` |
 | `scheduled_messages_read` | `get`, `list`, `ack` |
 | `scheduled_messages_write` | `send`, `update`, `cancel` |
 | `audiences` | `list`, `create`, `get`, `update`, `delete`, `append_contacts`, `update_contact`, `remove_contact` |
 | `campaigns` | `list`, `create`, `get`, `pause`, `resume`, `cancel` |
+| `tasks` | `list_boards`, `get_board`, `list_tasks`, `create_task`, `update_task` |
 | `webhooks` | `list`, `create`, `get`, `update`, `delete` |
-| `engine` | `status` |
-| `utils` | `current_date_time` |
+| `engine` | `status`, `logout`, `reload` |
+| `utils` | `validate_phone`, `link_preview`, `current_date_time` |
 
-The hosted connector at `https://api.blueticks.co/mcp` has its own tool manifest, which can differ from this package. See https://blueticks.co/mcp for that list.
+The tool names, actions, descriptions and server instructions match what an API-key connection sees on the hosted connector at `https://api.blueticks.co/mcp`. Only `agents` and `agent_schedules` are missing, because the public `/v1` API has no routes for them yet. The old names `chats` and `scheduled_messages` are not listed but are still accepted on a call.
+
+### Upgrading to 1.4.0
+
+1.4.0 adds the hosted actions listed above and the `tasks` tool. Two actions were removed to match hosted: `groups list` (use `chats_read list` with `kinds: ["group"]`) and `contacts common_groups`. The server now calls the `/v1` HTTP API directly and no longer depends on the `blueticks` SDK. Set `BLUETICKS_BASE_URL` to point it at another API host.
 
 ### Upgrading to 1.3.0
 
-1.3.0 renames the mixed tools to the hosted connector's names: `chats` is now `chats_read` and `chats_write`, and `scheduled_messages` is now `scheduled_messages_read` and `scheduled_messages_write`. Update any allow-lists or prompts that reference the old names. Some hosted actions (`get_latest`, `get_poll_results`, `react`, and others) are not in this package yet and arrive in a later release (#1542).
+1.3.0 renames the mixed tools to the hosted connector's names: `chats` is now `chats_read` and `chats_write`, and `scheduled_messages` is now `scheduled_messages_read` and `scheduled_messages_write`. Update any allow-lists or prompts that reference the old names.
 
 ## Pricing and limits
 

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { MCP_CLIENT_UA, getClient, _resetClientForTests } from "../src/client";
+import { MCP_CLIENT_UA, createClient, resolveApiKey } from "../src/client";
 
 // The local stdio server authenticates with an API key, so it reaches neither
 // mcp_oauth_approved nor mcp_tool_used — local installs are absent from every MCP
@@ -16,20 +16,10 @@ describe("MCP_CLIENT_UA", () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     expect(MCP_CLIENT_UA).toBe(`blueticks-mcp/${pkg.version}`);
   });
-
-  it("survives the backend's delimited-token matcher once the SDK prefixes it", () => {
-    const sent = `blueticks-node/1.4.2 ${MCP_CLIENT_UA}`;
-    const m = /(?:^|[\s(;,])blueticks-mcp\/(\d+\.\d+\.\d+[\w.-]*)/i.exec(sent);
-    expect(m).not.toBeNull();
-    expect(m![1]).toBe(MCP_CLIENT_UA.split("/")[1]);
-  });
 });
 
 describe("the User-Agent actually sent on the wire", () => {
-  beforeEach(() => _resetClientForTests());
-
   it("reaches the API as a delimited blueticks-mcp token", async () => {
-    const { Blueticks } = await import("blueticks");
     let seen = "";
     const fakeFetch: typeof fetch = async (_url, init) => {
       seen = new Headers(init?.headers).get("user-agent") ?? "";
@@ -39,21 +29,31 @@ describe("the User-Agent actually sent on the wire", () => {
       });
     };
 
-    const client = new Blueticks({
-      apiKey: "bt_live_test",
-      userAgent: MCP_CLIENT_UA,
-      fetch: fakeFetch,
-    });
-    await client.ping().catch(() => undefined);
+    const client = createClient("bt_live_test", { fetch: fakeFetch });
+    await client.engines.status();
 
-    expect(seen).toContain(MCP_CLIENT_UA);
-    // the exact matcher the backend uses
     expect(/(?:^|[\s(;,])blueticks-mcp\/(\d+\.\d+\.\d+[\w.-]*)/i.test(seen)).toBe(true);
   });
 
-  it("getClient returns a usable singleton", () => {
-    const a = getClient("bt_live_x");
-    const b = getClient("bt_live_x");
-    expect(a).toBe(b);
+  it("defaults to the production API", async () => {
+    let url = "";
+    const fakeFetch: typeof fetch = async (input) => {
+      url = String(input);
+      return new Response("{}", { status: 200 });
+    };
+    await createClient("bt_live_test", { fetch: fakeFetch }).utils.currentDateTime();
+    expect(url).toBe("https://api.blueticks.co/v1/utils/current_date_time");
+  });
+});
+
+describe("resolveApiKey", () => {
+  it("prefers --api-key over the environment", () => {
+    expect(resolveApiKey(["--api-key", "a"], { BLUETICKS_API_KEY: "b" })).toBe("a");
+    expect(resolveApiKey(["--api-key=c"], {})).toBe("c");
+    expect(resolveApiKey([], { BLUETICKS_API_KEY: "b" })).toBe("b");
+  });
+
+  it("fails clearly without a key", () => {
+    expect(() => resolveApiKey([], {})).toThrow(/BLUETICKS_API_KEY/);
   });
 });

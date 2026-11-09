@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const CampaignId = z.string().min(1);
 
 const ListArgs = z
-  .object({ limit: z.number().int().min(1).max(200).optional(), skip: z.number().int().min(0).optional() })
+  .object({ limit: z.number().int().min(1).max(200).optional(), cursor: z.string().optional() })
   .strict();
 
 const CreateArgs = z
@@ -17,6 +18,11 @@ const CreateArgs = z
     media_url: z.string().url().optional(),
     media_caption: z.string().optional(),
     on_missing_variable: z.enum(["fail", "skip"]).optional(),
+    send_at: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .describe("ISO 8601 with UTC offset. Start the campaign at this time instead of now; >=10s and <=365 days ahead."),
   })
   .strict();
 
@@ -36,22 +42,17 @@ type CampaignsInput =
   | ({ action: "create" } & z.infer<typeof CreateArgs>)
   | ({ action: "get" | "pause" | "resume" | "cancel" } & z.infer<typeof ByIdArgs>);
 
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(o: T): Partial<T> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
-  return out as Partial<T>;
-}
-
 const campaignsTool = {
   name: "campaigns" as const,
   description: [
     "Schedule audiences for paced bulk delivery, with pause/resume/cancel controls.",
     "Available actions:",
     "  - list: list campaigns",
-    "  - create: schedule a campaign against an audience (name + audience_id + optional text/media_url/media_caption/on_missing_variable)",
+    "  - create: schedule a campaign against an audience (name + audience_id + optional text/media_url/on_missing_variable/send_at to schedule for later)",
     "  - get: retrieve a campaign by id",
     "  - pause / resume / cancel: control a running campaign",
+    "",
+    "`create` LAUNCHES a paced BULK send to the whole audience — an impactful action. Confirm with the user before creating one. An audience may contain individuals (phone / @c.us), groups (@g.us), and newsletters (@newsletter) — all are valid campaign contacts; a raw name is not (resolve it to a JID first).",
     "",
     "Templates: `text` supports per-contact substitution using SINGLE-brace tokens — `Hi {firstName}, your {product} is renewing`.",
     "Resolution is case-insensitive. Built-ins always available: {whatsappname}, {displayname}, {phone}, {mobile}.",
@@ -63,6 +64,8 @@ const campaignsTool = {
     "  - pause: 'pause campaign 6a37b9a44919fa7098017a65'",
   ].join("\n"),
   inputSchema: actionSchemaToJsonSchema(actions),
+  // Per-action argument schemas (clients that expose one tool per action).
+  actionSchemas: actions,
   annotations: {
     list: { readOnlyHint: true },
     get: { readOnlyHint: true },
@@ -77,22 +80,22 @@ const campaignsTool = {
       switch (input.action) {
         case "list":
           data = await client.campaigns.list(
-            compact({ limit: input.limit, skip: input.skip }),
+            compact({ limit: input.limit, cursor: input.cursor }),
           );
           break;
         case "create":
           // Required fields go directly; optional ones are spread only when
           // present so the SDK doesn't see explicit `undefined` slots.
-          // Wire names are camelCase in the 2.0 API.
           data = await client.campaigns.create({
             name: input.name,
-            audienceId: input.audience_id,
+            audience_id: input.audience_id,
             ...(input.text !== undefined && { text: input.text }),
-            ...(input.media_url !== undefined && { mediaUrl: input.media_url }),
-            ...(input.media_caption !== undefined && { mediaCaption: input.media_caption }),
+            ...(input.media_url !== undefined && { media_url: input.media_url }),
+            ...(input.media_caption !== undefined && { media_caption: input.media_caption }),
             ...(input.on_missing_variable !== undefined && {
-              onMissingVariable: input.on_missing_variable,
+              on_missing_variable: input.on_missing_variable,
             }),
+            ...(input.send_at !== undefined && { send_at: input.send_at }),
           });
           break;
         case "get":

@@ -1,10 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import groupsTool from "../src/tool-defs/tools/groups";
-import type { BlueticksGroupsApi, BlueticksSurface } from "../src/tool-defs/surface";
+import type { BlueticksChatsApi, BlueticksGroupsApi, BlueticksSurface } from "../src/tool-defs/surface";
 
 function surface() {
   const groups: BlueticksGroupsApi = {
-    list: vi.fn().mockResolvedValue({}),
     get: vi.fn().mockResolvedValue({}),
     create: vi.fn().mockResolvedValue({}),
     update: vi.fn().mockResolvedValue({}),
@@ -13,7 +12,9 @@ function surface() {
     setPicture: vi.fn().mockResolvedValue({ id: "g@g.us" }),
     removePicture: vi.fn().mockResolvedValue({ ok: true }),
   };
-  const client: Pick<BlueticksSurface, "groups"> = { groups };
+  // The picture actions never touch chats; the stub only satisfies the tool's client type.
+  const chats = {} as BlueticksChatsApi;
+  const client: Pick<BlueticksSurface, "groups" | "chats"> = { groups, chats };
   return { groups, client };
 }
 
