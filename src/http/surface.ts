@@ -64,6 +64,50 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * BE#1599 (mirrors the hosted fix, whatsapp-scheduler-backend #2641): the in-process
+ * engine-dispatch error for "zero engines online". It carries the same `data.code` the vendored
+ * `toolErrorResult` maps to `no_engine_connected`, so both servers answer the model alike.
+ */
+export class NoEngineOnlineError extends Error {
+  readonly statusCode = 503;
+  readonly data: { readonly code: "no_engine_online" } = { code: "no_engine_online" };
+  constructor() {
+    super("No WhatsApp engine is connected for this account");
+    this.name = "NoEngineOnlineError";
+  }
+}
+
+/**
+ * An empty /v1/messages page that no engine answered (no `answeredBy`) and the backup tier did
+ * not fill (no `sources`). REST keeps answering 200 for it (BE#1553), so on its own it cannot be
+ * told apart from a chat that is genuinely empty.
+ */
+function isUnansweredEmptyPage(page: unknown): boolean {
+  return (
+    isRecord(page) &&
+    Array.isArray(page.data) &&
+    page.data.length === 0 &&
+    page.sources === undefined &&
+    page.answeredBy === undefined
+  );
+}
+
+/**
+ * GET /v1/messages, with the BE#1599 rule: when nothing was read at all, say WhatsApp is not
+ * connected instead of returning an empty page the model reports as "no messages". An agent
+ * once told its owner a chat full of messages was empty this way. The engine list (`[]` = no
+ * engine connected) is asked only for an unanswered empty page. If that probe itself fails, the
+ * page is returned unchanged, as before.
+ */
+async function readMessages(http: HttpTransport, query: Record<string, unknown>): Promise<unknown> {
+  const page = await http.get("/v1/messages", query);
+  if (!isUnansweredEmptyPage(page)) return page;
+  const engines = await http.get("/v1/engines").catch((): undefined => undefined);
+  if (isRecord(engines) && Array.isArray(engines.data) && engines.data.length === 0) throw new NoEngineOnlineError();
+  return page;
+}
+
 function audiences(http: HttpTransport): BlueticksAudiencesApi {
   return {
     list: (q) => http.get("/v1/audiences", q),
@@ -108,9 +152,9 @@ function chats(http: HttpTransport): BlueticksChatsApi & { listAllMessages: NonN
     list: (args = {}) => http.get("/v1/chats", mapListChatsQuery(args)),
     getLatestChatsAndMessages: (args = {}) => http.get("/v1/latest-chats", mapLatestChatsQuery(args)),
     get: (chatId, opts) => http.get(`/v1/chats/${seg(chatId)}`, mapEngineTarget(opts)),
-    listMessages: (chatId, args = {}) => http.get("/v1/messages", { chatId, ...mapListMessagesQuery(args) }),
+    listMessages: (chatId, args = {}) => readMessages(http, { chatId, ...mapListMessagesQuery(args) }),
     // No chat: the engine searches every chat.
-    listAllMessages: (args = {}) => http.get("/v1/messages", mapListMessagesQuery(args)),
+    listAllMessages: (args = {}) => readMessages(http, mapListMessagesQuery(args)),
     // BE#145: MCP callers get small images inlined as base64; plain REST gets a url only.
     getMedia: (chatId, key, opts) =>
       http.get(`/v1/messages/media/${seg(key)}`, { chatId, ...mapEngineTarget(opts), inline_base64: true }),
