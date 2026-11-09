@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const ListArgs = z
@@ -18,13 +19,6 @@ const actions = { list: ListArgs, get_profile_picture: GetProfilePicArgs };
 type ContactsInput =
   | ({ action: "list" } & z.infer<typeof ListArgs>)
   | ({ action: "get_profile_picture" } & z.infer<typeof GetProfilePicArgs>);
-
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as Partial<T>;
-}
 
 const contactsTool = {
   name: "contacts" as const,

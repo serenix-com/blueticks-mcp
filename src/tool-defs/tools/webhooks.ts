@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const WebhookId = z.string().min(1);
@@ -55,12 +56,6 @@ type WebhooksInput =
   | ({ action: "get" } & z.infer<typeof GetArgs>)
   | ({ action: "update" } & z.infer<typeof UpdateArgs>)
   | ({ action: "delete" } & z.infer<typeof DeleteArgs>);
-
-function compact<T extends Record<string, unknown>>(o: T): Partial<T> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
-  return out as Partial<T>;
-}
 
 const webhooksTool = {
   name: "webhooks" as const,

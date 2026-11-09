@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact, isPlainRecord } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 // NOTE: `list` action is omitted — the Blueticks Node SDK's GroupsResource
@@ -103,13 +104,6 @@ function hasValidGroupId(input: GroupsDispatchInput): input is GroupsInput {
   return true;
 }
 
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as Partial<T>;
-}
-
 /** A user-input error ToolResult: a raw throw/ZodError would otherwise surface as internal_error/500. */
 function badRequestResult(message: string, details?: { path: string; code: string }[]): ToolResult {
   return {
@@ -192,12 +186,12 @@ const groupsTool = {
               client.groups.get(input.group_id),
               client.chats.listParticipants(input.group_id),
             ]);
-            data = { ...(group as Record<string, unknown>), participants };
+            data = { ...(isPlainRecord(group) ? group : {}), participants };
           } else {
             data = await client.groups.get(input.group_id);
           }
           break;
-        case "create":
+        case "create": {
           // The shared flat-schema path skips parse(), so re-validate after normalising
           // (non-empty list, each entry >= 3 chars) before touching the engine.
           const createArgs = actions.create.safeParse({
@@ -213,6 +207,7 @@ const groupsTool = {
           }
           data = await client.groups.create(createArgs.data);
           break;
+        }
         case "update":
           data = await client.groups.update(
             input.group_id,

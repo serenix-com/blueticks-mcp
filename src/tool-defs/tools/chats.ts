@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 import { MESSAGE_TYPE_VALUES } from "../message-types";
 
@@ -391,13 +392,6 @@ type ChatsInput =
   | ({ action: "send_message_poll" } & z.infer<typeof SendMessagePollArgs>)
   | ({ action: "send_button_reply" } & z.infer<typeof SendButtonReplyArgs>);
 
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as Partial<T>;
-}
-
 interface LimitClamped { requested: number; applied: number; max: number; howToPage: string }
 
 /**
@@ -424,7 +418,7 @@ export function sanitizeChatId(id: string): string {
  * ChatId is a loose min-length string, so quoted ids reach dispatch) and
  * before the v1 services' strict JID regex.
  */
-function sanitizeChatIdFields(input: Record<string, unknown>): void {
+function sanitizeChatIdFields(input: { action: string; chat_id?: unknown; chat_ids?: unknown }): void {
   if (typeof input.chat_id === "string") input.chat_id = sanitizeChatId(input.chat_id);
   if (Array.isArray(input.chat_ids)) {
     input.chat_ids = input.chat_ids.map((v) => (typeof v === "string" ? sanitizeChatId(v) : v));
@@ -666,7 +660,7 @@ const chatsTool = {
     try {
       // Model-input hygiene: ids sometimes arrive with embedded JSON quotes —
       // normalize before any downstream strict validation.
-      sanitizeChatIdFields(input as unknown as Record<string, unknown>);
+      sanitizeChatIdFields(input);
       let limitClamped: LimitClamped | undefined;
       if ('limit' in input && typeof input.limit === 'number' && input.limit > CHATS_LIMIT_MAX) {
         limitClamped = {

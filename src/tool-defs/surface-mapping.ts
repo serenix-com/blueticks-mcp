@@ -12,8 +12,17 @@
  */
 
 /** Drop keys whose value is `undefined` so v1's `.strict()` query schemas don't choke. */
-export function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+export function compact<T extends object>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined) out[key] = obj[key];
+  }
+  return out;
+}
+
+/** A non-null, non-array object, narrowed so its fields can be read without a cast. */
+export function isPlainRecord(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
 /**
@@ -122,10 +131,6 @@ export function mapBatchAcksBody(body: { message_keys: string[] }): { messageKey
  * separate caption). `reply_to` → `replyTo` (the snake_case wire name would be
  * rejected by the strict schema).
  */
-function isPlainRecord(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
-}
-
 export function mapChatsSendBody(body: unknown): Record<string, unknown> {
   const b: Record<string, unknown> = isPlainRecord(body) ? body : {};
   const { reply_to, media, poll, engine_id, ...rest } = b;
@@ -136,8 +141,8 @@ export function mapChatsSendBody(body: unknown): Record<string, unknown> {
   if (reply_to !== undefined && out.replyTo === undefined) out.replyTo = reply_to;
   // snake_case engine_id → the v1 body's engineId (engine / from pass through as-is).
   if (engine_id !== undefined && out.engineId === undefined) out.engineId = engine_id;
-  if (media !== null && typeof media === 'object') {
-    const m = media as Record<string, unknown>;
+  if (isPlainRecord(media)) {
+    const m = media;
     // url wins over data_base64 — forward only the winning source.
     if (typeof m.url === 'string' && m.url.length > 0) out.mediaUrl = m.url;
     else if (typeof m.data_base64 === 'string' && m.data_base64.length > 0) out.mediaBase64 = m.data_base64;
@@ -148,8 +153,8 @@ export function mapChatsSendBody(body: unknown): Record<string, unknown> {
     // clobber an explicit top-level `text` if one was somehow provided.
     if (typeof m.caption === 'string' && m.caption.length > 0 && out.text === undefined) out.text = m.caption;
   }
-  if (poll !== null && typeof poll === 'object') {
-    const p = poll as Record<string, unknown>;
+  if (isPlainRecord(poll)) {
+    const p = poll;
     if (p.question !== undefined) out.pollQuestion = p.question;
     if (p.options !== undefined) out.pollOptions = p.options;
     if (p.allow_multiple !== undefined) out.pollAllowMultiple = p.allow_multiple;

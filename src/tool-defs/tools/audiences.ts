@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const AudienceId = z.string().min(1);
@@ -54,13 +55,6 @@ type AudiencesInput =
   | ({ action: "append_contacts" } & z.infer<typeof AppendArgs>)
   | ({ action: "update_contact" } & z.infer<typeof UpdateContactArgs>)
   | ({ action: "remove_contact" } & z.infer<typeof RemoveContactArgs>);
-
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(o: T): Partial<T> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
-  return out as Partial<T>;
-}
 
 const audiencesTool = {
   name: "audiences" as const,

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { BlueticksSurface } from "../surface";
 import { actionSchemaToJsonSchema } from "../schema";
+import { compact } from "../surface-mapping";
 import { toolErrorResult, type ToolResult } from "../errors";
 
 const BoardId = z.string().min(1);
@@ -132,13 +133,6 @@ type BoardsInput =
   | ({ action: "update_item" } & z.infer<typeof UpdateItemArgs>)
   | ({ action: "bulk_upsert" } & z.infer<typeof BulkUpsertArgs>)
   | ({ action: "find_similar" } & z.infer<typeof FindSimilarArgs>);
-
-/** Strip keys whose value is undefined so SDK param objects stay clean. */
-function compact<T extends Record<string, unknown>>(o: T): Partial<T> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
-  return out as Partial<T>;
-}
 
 const boardsTool = {
   name: "boards" as const,
