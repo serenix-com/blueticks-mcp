@@ -3,6 +3,7 @@ import { buildServerInstructions, buildToolList, findTool, type ManifestTool } f
 import { createClient } from "../src/client";
 import { SPLIT_TOOL_DESCRIPTIONS } from "../src/tool-defs/hosted/default-descriptions";
 import { fakeFetch } from "./fake-fetch";
+import messagesTool from "../src/tool-defs/tools/scheduled-messages";
 
 const names = (): string[] => buildToolList().map((t) => t.name);
 
@@ -128,5 +129,15 @@ describe("dispatch", () => {
   it("rejects an action the tool does not declare", async () => {
     const res = await listed("utils").dispatch({ action: "nope" }, client);
     expect(res.isError).toBe(true);
+  });
+});
+
+describe("send_at takes a UTC offset (#1597)", () => {
+  // The manifest dispatch skips zod, so check the tool's own schema directly.
+  it.each([
+    ["send", { action: "send", to: "1@c.us", text: "hi", send_at: "2030-12-01T09:00:00+02:00" }],
+    ["update", { action: "update", id: "m1", send_at: "2030-12-01T09:00:00-05:00" }],
+  ])("%s", (_name, input) => {
+    expect(messagesTool.parse(input)).toMatchObject({ send_at: input.send_at });
   });
 });

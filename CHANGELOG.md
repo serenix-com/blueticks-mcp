@@ -7,6 +7,7 @@
 - Tool descriptions and server instructions now come from the hosted connector.
 - Removed to match hosted: `groups list` (use `chats_read list` with `kinds: ["group"]`) and `contacts common_groups`.
 - `agents` and `agent_schedules` are not available yet: the public API has no routes for them.
+- `scheduled_messages_write` `send` / `update` now accept `send_at` with a UTC offset (e.g. `2026-12-01T09:00:00+02:00`), not only `Z` times, matching the API (#1597).
 
 ## 1.3.0
 
