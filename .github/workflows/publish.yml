@@ -1,5 +1,5 @@
-# A v* tag publishes to npm only. The MCP Registry job is skipped on tag pushes until
-# DNS auth lands (#1528); run it by hand with workflow_dispatch + registry_only.
+# A v* tag publishes to npm only. The MCP Registry job is skipped on tag pushes; run it
+# by hand with workflow_dispatch + registry_only (DNS auth wired, #1528).
 name: Publish to npm
 
 on:
@@ -45,21 +45,17 @@ jobs:
       - run: npm test -- --run
       - run: npm publish --access public
 
-  # NOTE: server.json is now named co.blueticks/blueticks, which needs DNS auth
-  # (mcp-publisher login dns), not github-oidc; this job's login step below still
-  # uses github-oidc and will fail for that name until it is changed (op: DNS key).
-  # Publishes server.json to the official MCP Registry. The io.github.serenix-com/*
-  # namespace is an org namespace, so it needs GitHub Actions OIDC; the interactive
-  # `mcp-publisher login github` gets a 403. No secret is used here.
+  # Publishes server.json (co.blueticks/blueticks) to the official MCP Registry using
+  # DNS auth: the ed25519 public key is in the blueticks.co TXT record (v=MCPv1), the
+  # private key (hex seed) is the MCP_REGISTRY_PRIVATE_KEY repo secret.
   registry:
     # Skipped on tag pushes so a failing registry login can never block or fail the npm
-    # release. Re-enable the tag trigger (`needs.publish.result == 'success'`) once
-    # `mcp-publisher login dns` is wired for co.blueticks/blueticks (#1528).
+    # release. Re-enable the tag trigger (`needs.publish.result == 'success'`) once the
+    # DNS login below has been proven by a manual registry_only run (#1528).
     needs: publish
     if: ${{ always() && inputs.registry_only == true }}
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v5
@@ -84,5 +80,11 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             "$archive"
           tar xzf "$archive" mcp-publisher
-      - run: ./mcp-publisher login github-oidc
+      - name: Log in to the MCP Registry (DNS auth)
+        env:
+          MCP_REGISTRY_PRIVATE_KEY: ${{ secrets.MCP_REGISTRY_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$MCP_REGISTRY_PRIVATE_KEY"
+          ./mcp-publisher login dns --domain blueticks.co --private-key "$MCP_REGISTRY_PRIVATE_KEY"
       - run: ./mcp-publisher publish
