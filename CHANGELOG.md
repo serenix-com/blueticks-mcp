@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- The MCP Registry listing (`co.blueticks/blueticks`) now publishes with DNS auth from the release workflow (#1528). No runtime change.
+
 ## 1.4.0
 
 - The server now calls the `/v1` HTTP API through its own adapter (`src/http/`) instead of the `blueticks` SDK, so its actions match the hosted connector (#1542). `BLUETICKS_BASE_URL` overrides the API host.
