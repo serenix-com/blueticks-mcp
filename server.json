@@ -3,7 +3,7 @@
   "name": "co.blueticks/blueticks",
   "title": "Blueticks WhatsApp MCP",
   "description": "WhatsApp MCP on your own number: read chats, search contacts, send messages.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "websiteUrl": "https://blueticks.co/mcp",
   "repository": {
     "url": "https://github.com/serenix-com/blueticks-mcp",
