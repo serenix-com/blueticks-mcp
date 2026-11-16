@@ -37,7 +37,7 @@ const numberTargetShape = {
   fanout_limit: z
     .number()
     .int()
-    .positive()
+    .min(1)
     .optional()
     .describe("With no number target, read at most this many of the account's numbers (default 5). Numbers over the cap are listed in skippedNumbers."),
 };
