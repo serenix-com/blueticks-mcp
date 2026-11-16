@@ -1,6 +1,47 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
+type JsonRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * zod-to-json-schema's `openApi3` target renders `.positive()` / `.gt()` / `.lt()` in the
+ * OpenAPI 3.0 style: a BOOLEAN `exclusiveMinimum` / `exclusiveMaximum` beside `minimum` /
+ * `maximum`. The Anthropic API (and any draft-07 validator) requires a NUMBER there and
+ * rejects the whole tool ("exclusiveMinimum must be number"), which drops the tool from the
+ * client. Rewrite the boolean form to the numeric one, recursively, so no tool can emit it:
+ * `{minimum: 0, exclusiveMinimum: true}` -> `{exclusiveMinimum: 0}`; `false` -> key dropped.
+ */
+export function normalizeExclusiveBounds(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map(normalizeExclusiveBounds);
+  }
+  if (!isRecord(node)) {
+    return node;
+  }
+  const out: JsonRecord = {};
+  for (const [key, value] of Object.entries(node)) {
+    out[key] = normalizeExclusiveBounds(value);
+  }
+  for (const [exclusiveKey, boundKey] of [
+    ["exclusiveMinimum", "minimum"],
+    ["exclusiveMaximum", "maximum"],
+  ] as const) {
+    const flag = out[exclusiveKey];
+    if (typeof flag !== "boolean") continue;
+    const bound = out[boundKey];
+    delete out[exclusiveKey];
+    if (flag && typeof bound === "number") {
+      delete out[boundKey];
+      out[exclusiveKey] = bound;
+    }
+  }
+  return out;
+}
+
 export interface ActionJsonSchema {
   type: "object";
   properties: Record<string, unknown>;
@@ -30,10 +71,9 @@ export function actionSchemaToJsonSchema(
   };
 
   for (const [, schema] of entries) {
-    const jsonAny = zodToJsonSchema(schema, { target: "openApi3" }) as {
-      properties?: Record<string, unknown>;
-    };
-    for (const [propName, propSchema] of Object.entries(jsonAny.properties ?? {})) {
+    const json = normalizeExclusiveBounds(zodToJsonSchema(schema, { target: "openApi3" }));
+    const properties = isRecord(json) && isRecord(json.properties) ? json.properties : {};
+    for (const [propName, propSchema] of Object.entries(properties)) {
       if (!(propName in mergedProperties)) {
         mergedProperties[propName] = propSchema;
       }

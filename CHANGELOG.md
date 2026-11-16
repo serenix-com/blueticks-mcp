@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- Fix: `chats_read` and `chats_write` failed to load in Claude ("fanout_limit exclusiveMinimum must be number"). `fanout_limit` now uses a plain minimum of 1, and the schema generator rewrites any boolean `exclusiveMinimum` / `exclusiveMaximum` to the numeric form so no tool can emit it again. No other schema changes.
+
 ## 1.4.1
 
 - The MCP Registry listing (`co.blueticks/blueticks`) now publishes with DNS auth from the release workflow (#1528). No runtime change.
