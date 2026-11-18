@@ -20,7 +20,7 @@ The script copies `src/mcp-tool-defs`, plus `src/mcp/tools/{default-descriptions
 that point outside the tool-defs onto `backend-shims.ts`, applies the strict-typing fixes, and fails
 if any outside import is left.
 
-Last synced from backend `prod` commit `97e35abf3` (#2104: `list_messages` forwards `number`/`engine`/`engine_id`).
+Last synced from backend `prod` + the open PRs BE#2887 (#2102 `groups leave` selector) and BE#2889 (#2106 chat writes and contacts list selector). Re-vendor from `prod` once they merge.
 
 The tools call the `BlueticksSurface` interface (`surface.ts`). Here it is implemented by
 `src/http/surface.ts` over the `/v1` routes, mirroring the backend's in-process adapter

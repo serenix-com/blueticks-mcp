@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4
+
+- Fix: `chats_write` `mark_read`, `react`, `archive`, `unarchive`, `chats_read` `get_poll_results` and `contacts list` now accept `number` (a numberId or E.164 phone), `engine` and `engine_id`, so an account with several WhatsApp numbers acts on the one you name instead of its default engine (#2106). `groups leave` honours the same selector (#2102). Tool definitions re-synced from the backend.
+
 ## 1.4.3
 
 - Fix: `chats_read list_messages` dropped `number`, `engine` and `engine_id`, so an account with several WhatsApp numbers got `409 AMBIGUOUS_NUMBER` on reads. They are forwarded again (#2104). Tool definitions re-synced from the backend (`97e35abf3`), which also adds the `flag_attention` definition (not registered here).

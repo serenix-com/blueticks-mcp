@@ -146,8 +146,8 @@ export class HttpTransport {
   put(path: string, body: unknown): Promise<unknown> {
     return this.request("PUT", path, { body });
   }
-  delete(path: string): Promise<unknown> {
-    return this.request("DELETE", path, {});
+  delete(path: string, query?: RequestOptions["query"]): Promise<unknown> {
+    return this.request("DELETE", path, { query });
   }
 
   async request(method: HttpMethod, path: string, opts: RequestOptions): Promise<unknown> {

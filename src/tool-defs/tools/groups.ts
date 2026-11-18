@@ -46,7 +46,19 @@ const UpdateArgs = z
   })
   .strict();
 
-const LeaveArgs = z.object({ group_id: GroupId }).strict();
+// `leave` ends THIS account's membership, so on a multi-Number account it must say which Number leaves. `from` is
+// the WhatsApp number to leave as (what the send tools call it); `number` is the same selector under the read tools'
+// name. Both go to the v1 number selector: a number that is not the account's is 404 NUMBER_NOT_FOUND, an offline
+// one 409 NUMBER_OFFLINE, and with neither the Number that holds the group leaves (409 AMBIGUOUS_NUMBER if several do).
+const LeaveArgs = z
+  .object({
+    group_id: GroupId,
+    from: z.string().trim().min(1).max(64).optional(),
+    number: z.string().trim().min(1).max(32).optional(),
+    engine: z.enum(["gateway", "regular"]).optional(),
+    engine_id: z.string().min(1).max(200).optional(),
+  })
+  .strict();
 
 const GetPictureArgs = z.object({ group_id: GroupId }).strict();
 const RemovePictureArgs = z.object({ group_id: GroupId }).strict();
@@ -88,7 +100,10 @@ type GroupsInput =
  * `group_id` is optional for every action, so an id-bearing action can arrive without one even though
  * the strict `GroupsInput` says it cannot.
  */
-export type GroupsDispatchInput = GroupsInput | { action: "get" | "update" | "leave"; group_id?: string };
+export type GroupsDispatchInput =
+  | GroupsInput
+  | { action: "get" | "update"; group_id?: string }
+  | ({ action: "leave"; group_id?: string } & Partial<Omit<z.infer<typeof LeaveArgs>, "group_id">>);
 
 /** Just the client surface this tool uses, so a fake can be built to the real method signatures. */
 export type GroupsToolClient = {
@@ -215,7 +230,10 @@ const groupsTool = {
           );
           break;
         case "leave":
-          data = await client.groups.leave(input.group_id);
+          data = await client.groups.leave(
+            input.group_id,
+            compact({ engine: input.engine, engine_id: input.engine_id, number: input.from ?? input.number }),
+          );
           break;
         case "get_picture":
           data = await client.groups.getPicture(input.group_id);
