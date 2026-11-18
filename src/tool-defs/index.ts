@@ -41,16 +41,14 @@ import utilsTool from './tools/utils';
 import webhooksTool from './tools/webhooks';
 import imagesTool from './tools/images';
 import voiceTool from './tools/voice';
-
 import browsePageTool from './tools/browse-page';
 import reportCapabilityGapTool from './tools/report-capability-gap';
-import qualifyLeadTool from './tools/qualify-lead';
-
-// `calendarTool` / `imagesTool` / `browsePageTool` / `reportCapabilityGapTool` / `voiceTool` / `qualifyLeadTool` are deliberately NOT in TOOL_DEFS (the btgpt/harness
 import followupsTool from './tools/followups';
+import qualifyLeadTool from './tools/qualify-lead';
+import flagAttentionTool from './tools/flag-attention';
 import tasksTool from './tools/tasks';
 
-// `calendarTool` / `imagesTool` / `voiceTool` / `browsePageTool` / `reportCapabilityGapTool` / `followupsTool` / `tasksTool` (#1457, MCP-only) are deliberately NOT in TOOL_DEFS (the btgpt/harness
+// `calendarTool` / `imagesTool` / `voiceTool` / `browsePageTool` / `reportCapabilityGapTool` / `followupsTool` / `qualifyLeadTool` / `flagAttentionTool` / `tasksTool` (#1457, MCP-only) are deliberately NOT in TOOL_DEFS (the btgpt/harness
 // tool list): they act for the calling AGENT (token caps), so they are only
 // registered on the MCP server (shared-tool-handlers) where agent tokens arrive.
 export const TOOL_DEFS = [
@@ -79,8 +77,9 @@ export {
   boardsTool,
   browsePageTool,
   reportCapabilityGapTool,
-  qualifyLeadTool,
   followupsTool,
+  qualifyLeadTool,
+  flagAttentionTool,
   tasksTool,
   calendarTool,
   campaignsTool,

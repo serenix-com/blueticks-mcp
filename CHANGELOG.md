@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+- Fix: `chats_read list_messages` dropped `number`, `engine` and `engine_id`, so an account with several WhatsApp numbers got `409 AMBIGUOUS_NUMBER` on reads. They are forwarded again (#2104). Tool definitions re-synced from the backend (`97e35abf3`), which also adds the `flag_attention` definition (not registered here).
+
 ## 1.4.2
 
 - Fix: `chats_read` and `chats_write` failed to load in Claude ("fanout_limit exclusiveMinimum must be number"). `fanout_limit` now uses a plain minimum of 1, and the schema generator rewrites any boolean `exclusiveMinimum` / `exclusiveMaximum` to the numeric form so no tool can emit it again. No other schema changes.

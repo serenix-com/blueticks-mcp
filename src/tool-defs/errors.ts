@@ -11,6 +11,8 @@
  * `blueticks` as a runtime/types dep.
  */
 
+import { z } from "zod";
+import { POLICY_DENY_CODES } from "./backend-shims";
 import { classifyMcpError, type McpErrorCode } from "./error-codes";
 import { REASON_STATUSES, reasonForThrown, slugOfCustomMessage } from "./error-reason";
 
@@ -110,6 +112,49 @@ export function noEngineConnectedResult(reason: NoEngineReason = "no_engine"): T
     message: NO_ENGINE_MESSAGES[reason],
     connect_url: CONNECT_WHATSAPP_URL,
   });
+}
+
+/**
+ * #1882 — the no-engine result an AGENT session gets (a bot answering in a WhatsApp chat, not an MCP client).
+ * The MCP wording above ("tell the user to connect it at …") is for an owner at a keyboard; an agent's reader may be
+ * any contact, so the bot gets a short `user_message` it can say as is, a separate `owner_action` for the owner, and
+ * an explicit `report_gap: false` (no WhatsApp online is a state, not a missing capability). No retry hint.
+ */
+export interface AgentNoEngineBody {
+  status: 503;
+  code: typeof NO_ENGINE_CONNECTED;
+  reason: NoEngineReason;
+  /** Safe to say to anyone in the chat. */
+  user_message: string;
+  /** For the owner only (the agent's `error` field), never the contact. */
+  owner_action: string;
+  connect_url: typeof CONNECT_WHATSAPP_URL;
+  report_gap: false;
+}
+
+const AGENT_NO_ENGINE_USER_MESSAGE = "WhatsApp isn't connected right now, so I can't do this at the moment.";
+
+const AGENT_NO_ENGINE_OWNER_ACTIONS: Record<NoEngineReason, string> = {
+  no_engine:
+    `Connect WhatsApp: open WhatsApp Web in Chrome with the Blueticks extension, or reconnect your Gateway at ${CONNECT_WHATSAPP_URL}.`,
+  gateway_reconnecting:
+    `Your WhatsApp Gateway is reconnecting. If it is not back in a few minutes, check it at ${CONNECT_WHATSAPP_URL}.`,
+};
+
+export function agentNoEngineBody(reason: NoEngineReason): AgentNoEngineBody {
+  return {
+    status: 503,
+    code: NO_ENGINE_CONNECTED,
+    reason,
+    user_message: AGENT_NO_ENGINE_USER_MESSAGE,
+    owner_action: AGENT_NO_ENGINE_OWNER_ACTIONS[reason],
+    connect_url: CONNECT_WHATSAPP_URL,
+    report_gap: false,
+  };
+}
+
+export function agentNoEngineResult(reason: NoEngineReason): ToolResult {
+  return { isError: true, content: [{ type: "text", text: JSON.stringify(agentNoEngineBody(reason)) }] };
 }
 
 /** `data.code` of a Feathers-shaped error: the engine / dispatch code callEngineTool attaches. */
@@ -390,7 +435,41 @@ export function badRequestReason(details: unknown): string {
   return base;
 }
 
+const POLICY_DENY_CODE_SET: ReadonlySet<string> = new Set(POLICY_DENY_CODES);
+
+/** #1101 S3: the engine refused by policy (e.g. the Cloud API 24h window closed); nothing was sent. */
+function policyDenyCodeOf(err: unknown): string | undefined {
+  const code = dataCodeOf(err);
+  return code !== undefined && POLICY_DENY_CODE_SET.has(code) && isFeathersErrorLike(err) ? code : undefined;
+}
+
+const AmbiguousCandidates = z.array(z.object({ numberId: z.string(), phoneNumber: z.string() })).min(1);
+
+/**
+ * #1967: several of the account's WhatsApp numbers hold the object. The v1 message names the REST params
+ * (numberId / phone); the MCP tools take one `number` (a numberId or a phone), so say that and list the numbers.
+ */
+function ambiguousNumberBody(err: unknown): Record<string, unknown> | undefined {
+  if (dataCodeOf(err) !== "AMBIGUOUS_NUMBER" || !isFeathersErrorLike(err)) return undefined;
+  const raw: unknown = err.data && typeof err.data === "object" ? Reflect.get(err.data, "candidates") : undefined;
+  const parsed = AmbiguousCandidates.safeParse(raw);
+  if (!parsed.success) return undefined;
+  return {
+    status: err.code,
+    code: "conflict",
+    reason: "ambiguous_number",
+    message: "Several WhatsApp numbers have this. Retry with `number` set to the numberId or phoneNumber of one of the candidates.",
+    candidates: parsed.data,
+  };
+}
+
 export function toolErrorResult(err: unknown): ToolResult {
+  const ambiguous = ambiguousNumberBody(err);
+  if (ambiguous !== undefined) return wrap(ambiguous);
+  const policyCode = policyDenyCodeOf(err);
+  if (policyCode !== undefined && isFeathersErrorLike(err)) {
+    return wrap({ status: err.code, code: policyCode, message: err.message, sent: false });
+  }
   if (isNoEngineOnline(err)) return noEngineConnectedResult();
   if (isEngineNotReady(err)) {
     const message = (err as { message?: unknown }).message;

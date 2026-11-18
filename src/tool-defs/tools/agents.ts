@@ -45,14 +45,6 @@ const CreateArgs = z
       .optional()
       .describe("No effect for agent runs: they never get the account-wide chat list (session isolation). Resolve chat ids yourself and pass them in read_message_chat_ids."),
     include_new_chats: z.boolean().optional().describe("Also respond to brand-new incoming chats. Default false."),
-    songs: z
-      .boolean()
-      .optional()
-      .describe("Media-reply switch: lets the agent answer with audio (songs/music) in the chat it is answering. Turn on only when the agent's job needs audio replies; default off."),
-    images: z
-      .boolean()
-      .optional()
-      .describe("Media-reply switch: lets the agent answer with images in the chat it is answering. Turn on only when the agent's job needs picture replies; default off."),
     voice_replies: z
       .boolean()
       .optional()
@@ -67,10 +59,22 @@ const CreateArgs = z
       .max(64)
       .optional()
       .describe("The VOICE it speaks with, for voice notes and calls — a voice id from the agent form's voice list (Google: e.g. 'Aoede' female, 'Puck' male). Omit for the default voice."),
+    manage_boards: z
+      .boolean()
+      .optional()
+      .describe("MANAGES ITS OWN BLUETICKS BOARDS: opens boards (tasks, leads, invoices, follow-ups…), adds and updates items — from chat and from calls. It reuses its board of a kind instead of opening a new one. Turn on when the user wants the agent to keep tasks / leads / follow-ups. Default false."),
     answer_calls: z
       .boolean()
       .optional()
       .describe("ANSWERS WhatsApp VOICE CALLS from the chats it serves and talks with the caller (its own persona and knowledge), live. Turn on when the user wants callers to be able to phone the agent. Works on numbers connected as a Gateway (24/7). Default false."),
+    songs: z
+      .boolean()
+      .optional()
+      .describe("Media-reply switch: lets the agent answer with audio (songs/music) in the chat it is answering. Turn on only when the agent's job needs audio replies; default off."),
+    images: z
+      .boolean()
+      .optional()
+      .describe("Media-reply switch: lets the agent answer with images in the chat it is answering. Turn on only when the agent's job needs picture replies; default off."),
     send_chat_ids: z
       .array(z.string())
       .optional()
@@ -130,8 +134,9 @@ const CreateArgs = z
       .enum(TRANSCRIBE_LANG_VALUES)
       .nullable()
       .optional()
-      .describe('Voice-note transcription language: "he" = Hebrew, "auto" = detect among Hebrew, English, Arabic and Russian ONLY, or pin the language the customers speak with a code such as "es-ES", "pt-BR", "fr-FR", "en-NG" (use this for any other language: auto reads it as the nearest of those four and returns gibberish). null/omit = the default (auto).'),
+      .describe('Voice-note transcription language: "he" = Hebrew, "fa" = Persian/Dari (Farsi only), "auto" = detect among Hebrew, English, Arabic and Russian ONLY, or pin the language the customers speak with a code such as "es-ES", "pt-BR", "fr-FR", "en-NG" (use this for any other language: auto reads it as the nearest of those four and returns gibberish). null/omit = the default (auto).'),
     hide_bot_prefix: z.boolean().optional().describe("Send replies without the bot-name prefix, so it reads as a person."),
+    seen_reaction: z.boolean().optional().describe("React 👀 to the customer's message as soon as the agent picks it up, before the reply is ready (once per burst). Needs a connected Gateway."),
     require_quote: z
       .boolean()
       .optional()

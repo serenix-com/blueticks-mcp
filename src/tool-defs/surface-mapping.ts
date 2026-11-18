@@ -86,6 +86,7 @@ export function mapListMessagesQuery(a: ListMessagesArgs = {}): Record<string, u
     searchToken: a.query, queryAny: a.query_any, mime: a.mime, filenameContains: a.filename_contains,
     hasMedia: a.has_media, sender: a.sender, limit: a.limit, skip: cursorToSkip(a.cursor),
     order: modeToOrder(a.mode), since: a.since, until: a.until, messageTypes: a.message_types,
+    ...mapEngineTarget(a),
   });
 }
 

@@ -50,6 +50,13 @@ const SendArgs = z
       .max(64)
       .optional()
       .describe('WhatsApp number to send from (e.g. "+15550001234"). Must be a connected number: a match is honoured, a mismatch is rejected (409 SENDER_MISMATCH, naming the valid number) and nothing is sent. Omit for the default connection.'),
+    // #1300 — agents only: the calendar event (organized by the owner) that holds the recipient's number. Required, and
+    // checked server-side, when a scheduled agent run sends to a number outside its chat; ignored for everyone else.
+    source_event_id: z.string().min(1).max(256).optional(),
+    // #1729 — agents only: the owner's audience (public audience id) that holds the recipient; alternative to source_event_id. Checked server-side: the audience must carry an outbound attestation, and a number gets at most 3 agent-initiated sends until it replies.
+    source_audience_id: z.string().min(1).max(256).optional(),
+    // #1300 — agents only: the reminder slot (e.g. "T-7d"). A later send with the same event+recipient+kind and a new send_at REPLACES the queued one.
+    reminder_kind: z.string().min(1).max(32).optional(),
     // #194 — display name for the recipient, shown in the scheduled-message
     // list. Optional; resolved automatically when omitted.
     recipient_name: z
@@ -102,6 +109,8 @@ const UpdateArgs = z
   })
   .strict();
 
+// #1300: an agent's cancel-by-event (source_event_id) is handled in mcp/services/internal-api.ts from the flat registration
+// args, so the per-action schema (what ChatGPT's list is built from) stays exactly as it was: id required.
 const CancelArgs = z.object({ id: z.string() }).strict();
 
 const AckArgs = z

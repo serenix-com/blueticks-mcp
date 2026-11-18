@@ -25,6 +25,8 @@ const EXTERNAL = [
   "mcp/services/agent-tool-fields",
   "services/agent-leads/leads",
   "services/agent-leads/leads.types",
+  "services/agent-attention/attention",
+  "services/agent-attention/attention.types",
   "services/actions/actions/voice-note-transcription",
 ];
 
