@@ -30,11 +30,11 @@ import type { MessageType } from './message-types';
 import type { ToolImageMime } from './errors';
 import type { AgentToolArgs } from './backend-shims';
 import type { QualifyLeadOutcome } from './backend-shims';
+import type { FlagAttentionOutcome } from './backend-shims';
+import type { AttentionKind } from './backend-shims';
 import type { LeadStage } from './backend-shims';
 
 
-/** #1185: the outcome of `qualify_lead` `save` (services/agent-leads). */
-export type { QualifyLeadOutcome } from './backend-shims';
 /** #1089: the outcomes of `followups` (schedule | list | cancel). */
 export type FollowupsScheduleOutcome =
   | { scheduled: true; id: string; send_at: string; target: 'chat' | 'owner' }
@@ -43,6 +43,9 @@ export interface FollowupsListOutcome {
   followups: Array<{ id: string; target: 'chat' | 'owner'; send_at: string; text: string }>;
 }
 export type FollowupsCancelOutcome = { cancelled: true } | { cancelled: false; error: string };
+
+/** #1185: the outcome of `qualify_lead` `save` (services/agent-leads). */
+export type { QualifyLeadOutcome } from './backend-shims';
 
 /** #965: the outcome of `report_capability_gap` `report`. */
 export interface ReportCapabilityGapOutcome {
@@ -95,6 +98,8 @@ export interface BlueticksCampaignsApi {
     media_caption?: string;
     on_missing_variable?: 'fail' | 'skip';
     send_at?: string;
+    /** #2094: the Number to send the whole campaign from (phone or numberId). Omit for the default. */
+    from?: string;
   }): Promise<unknown>;
   pause(id: string): Promise<unknown>;
   resume(id: string): Promise<unknown>;
@@ -186,12 +191,15 @@ export interface BlueticksChatsApi {
       deadline_ms?: number;
       engine?: 'gateway' | 'regular';
       engine_id?: string;
+      /** #1967: one of the account's WhatsApp numbers (a numberId or a phone). */
+      number?: string;
     },
   ): Promise<unknown>;
   getMedia(
     chatId: string,
     key: string,
-    opts?: { engine?: 'gateway' | 'regular'; engine_id?: string },
+    // transcribe (#1920): for an audio message, also return the transcript (credit-metered, see mcp/services/media-transcription.ts).
+    opts?: { engine?: 'gateway' | 'regular'; engine_id?: string; number?: string; transcribe?: boolean },
   ): Promise<unknown>;
   markRead(chatId: string): Promise<unknown>;
   // BE#844 — react to a message; emoji "" clears. POST /v1/messages/reactions/{key}?chatId=.
@@ -217,7 +225,7 @@ export interface BlueticksChatsApi {
   // `loadOlderMessages(chatId)` structurally satisfies this (extra optional arg).
   loadOlderMessages(
     chatId: string,
-    opts?: { pages?: number; until_date?: string | number; engine?: 'gateway' | 'regular'; engine_id?: string },
+    opts?: { pages?: number; until_date?: string | number; engine?: 'gateway' | 'regular'; engine_id?: string; number?: string },
   ): Promise<unknown>;
   // Immediate send via the POST /v1/messages/{chat_id}
   // endpoint — fire-and-forget, distinct from the queue-managed
@@ -540,15 +548,23 @@ export interface BlueticksSurface {
   images?: {
     combine(body: { chat_id: string; message_keys?: string[]; image_urls?: string[]; instruction: string }): Promise<unknown>;
   };
-  /** AGENT sessions with tools.leads (#1185): record the session's own chat as a lead. */
-  qualifyLead?: {
-    save(body: { chat_id: string; stage: LeadStage; fields?: Record<string, string> }): Promise<QualifyLeadOutcome>;
+  /** AGENT sessions: the reply spoken as a WhatsApp voice note, sent into the chat. */
+  voice?: {
+    say(body: { chat_id: string; text: string }): Promise<unknown>;
   };
   /** AGENT sessions (#1089): follow-ups — one message later, to the agent's own chat or the owner's operator chat. */
   followups?: {
     schedule(body: { chat_id: string; target: 'chat' | 'owner'; text: string; send_at?: string; in_minutes?: number; keep_on_reply?: boolean; calendar_event_id?: string; calendar_id?: string }): Promise<FollowupsScheduleOutcome>;
     list(body: { chat_id: string }): Promise<FollowupsListOutcome>;
     cancel(body: { chat_id: string; followup_id: string }): Promise<FollowupsCancelOutcome>;
+  };
+  /** AGENT sessions with tools.leads (#1185): record the session's own chat as a lead. */
+  qualifyLead?: {
+    save(body: { chat_id: string; stage: LeadStage; fields?: Record<string, string> }): Promise<QualifyLeadOutcome>;
+  };
+  /** AGENT sessions with tools.attention (#1216): flag the session's own chat as needing the owner. */
+  flagAttention?: {
+    save(body: { chat_id: string; kind: AttentionKind; summary: string }): Promise<FlagAttentionOutcome>;
   };
   /** AGENT sessions with web access (#829): a page rendered in a browser, as markdown. */
   browsePage?: {
@@ -559,10 +575,6 @@ export interface BlueticksSurface {
   /** AGENT sessions (#965): report a missing capability to the Blueticks team (a Crisp note tagged bot-gap). */
   reportCapabilityGap?: {
     report(body: { capability: string; description: string }): Promise<ReportCapabilityGapOutcome>;
-  };
-  /** AGENT sessions: the reply spoken as a WhatsApp voice note, sent into the chat. */
-  voice?: {
-    say(body: { chat_id: string; text: string }): Promise<unknown>;
   };
   /** Optional — only the in-process backend adapter implements the agent calendar. */
   calendar?: BlueticksCalendarApi;
@@ -628,7 +640,7 @@ export interface AgentTimeTriggerInput {
  * (sending is the Bridge's job). `trigger_chat_ids` = chats whose incoming messages
  * activate it (empty = only a schedule activates it); `read_message_chat_ids` = chats
  * it may READ messages from (turns the read MCP on, scoped to them); `read_all_messages`
- * = read any chat; `read_chats_list` = may list the chat list. By DEFAULT (all empty/
+ * = read the run's OWN chat only (session isolation; other chats need listing); `read_chats_list` = may list the chat list. By DEFAULT (all empty/
  * false) the agent has NO WhatsApp tools.
  */
 export interface BlueticksAgentsApi {
@@ -658,6 +670,8 @@ export interface BlueticksAgentsApi {
     voice_name?: string;
     /** Answers WhatsApp voice calls (policy tools.calls). */
     answer_calls?: boolean;
+    /** Manages its own Blueticks boards (policy tools.boards). */
+    manage_boards?: boolean;
     /** Trigger filter: 'private' = one-to-one chats only (no groups); 'all' (default) = groups too. */
     chat_types?: 'all' | 'private';
     /** Chats its replies go to INSTEAD of the triggering chat (omit = reply where triggered). */
@@ -696,6 +710,8 @@ export interface BlueticksAgentsApi {
     voice_name?: string;
     /** Answers WhatsApp voice calls (policy tools.calls). */
     answer_calls?: boolean;
+    /** Manages its own Blueticks boards (policy tools.boards). */
+    manage_boards?: boolean;
     /** Trigger filter: 'private' = one-to-one chats only (no groups); 'all' (default) = groups too. */
     chat_types?: 'all' | 'private';
     send_chat_ids?: string[];

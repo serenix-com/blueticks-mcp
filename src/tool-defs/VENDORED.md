@@ -11,7 +11,7 @@ plus `zod` / `zod-to-json-schema`.
 ## Re-syncing after a backend change
 
 ```sh
-node scripts/sync-tool-defs.mjs <path-to-whatsapp-scheduler-backend>
+node scripts/sync-tool-defs.mjs <path-to-whatsapp-scheduler-backend>/src/mcp-tool-defs
 npm run typecheck && npm test && npm run build
 ```
 
@@ -20,7 +20,7 @@ The script copies `src/mcp-tool-defs`, plus `src/mcp/tools/{default-descriptions
 that point outside the tool-defs onto `backend-shims.ts`, applies the strict-typing fixes, and fails
 if any outside import is left.
 
-Last synced from backend `prod` commit `7c3637f` (#1597: `send_at` accepts a UTC offset).
+Last synced from backend `prod` commit `97e35abf3` (#2104: `list_messages` forwards `number`/`engine`/`engine_id`).
 
 The tools call the `BlueticksSurface` interface (`surface.ts`). Here it is implemented by
 `src/http/surface.ts` over the `/v1` routes, mirroring the backend's in-process adapter

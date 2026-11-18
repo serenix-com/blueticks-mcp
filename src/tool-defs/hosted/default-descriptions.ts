@@ -17,8 +17,8 @@ import { MCP_TOOL_NAMES } from './tool-names';
  * Linted by src/mcp/tools/__tests__/default-manifest-factual-descriptions.test.ts.
  */
 
-/** Canonical ids of the tools in the default manifest (`boards` is not in it). */
-export type DefaultToolKey = Exclude<keyof typeof MCP_TOOL_NAMES, 'boards'>;
+/** Canonical ids of the tools in the default manifest. */
+export type DefaultToolKey = keyof typeof MCP_TOOL_NAMES;
 
 /**
  * #1527: default-manifest tools that are listed as two tools, a read-only half and a
@@ -46,6 +46,18 @@ const CHAT_ID_FORMAT =
   'Chat ids: an individual is <international number>@c.us (e.g. 15550100123@c.us), a group ends in @g.us, a channel ends in @newsletter.';
 
 export const DEFAULT_TOOL_DESCRIPTIONS: Readonly<Record<UnsplitToolKey, string>> = {
+  boards: [
+    'The agent’s own Blueticks boards: tasks, leads, invoices, follow-ups or any other kind of item it tracks (agent sessions). The owner sees and edits the same boards in the Blueticks app; other boards of the account are not reachable here.',
+    'Actions:',
+    '  - list_boards: the agent’s boards, each with its description.',
+    "  - create_board: {domain} for a built-in kind ('tasks', 'leads', 'invoices') or {entity_kind, description} for any other kind. Find-or-create: an existing board of that kind is returned as is. Returns the board with its columns and the valid status/priority labels.",
+    '  - get_board: {board_id} the board with its columns and labels.',
+    '  - list_items: {board_id, active_only?, status?, updated_since?, limit?, offset?} the board’s items.',
+    '  - create_item: {board_id, text, status?, priority?, due_date?, cells?, source?} adds one item; a near-identical active item is merged into the existing one.',
+    '  - update_item: {board_id, item_id, …} edits one item (status, text, due date, cells; deleted:true is a reversible soft-delete).',
+    '  - bulk_upsert: {board_id, items} creates or updates many items, deduplicated server-side.',
+    '  - find_similar: {board_id, candidates} which candidate texts already exist on the board.',
+  ].join('\n'),
   images: [
     'One image made from a WhatsApp chat’s photos and other images, sent into that chat (agent sessions).',
     'Actions:',
@@ -63,17 +75,22 @@ export const DEFAULT_TOOL_DESCRIPTIONS: Readonly<Record<UnsplitToolKey, string>>
     'Actions:',
     '  - report: {capability, description} opens a support note. Returns {status}: "reported", "deduped" or "failed" (internal, for you only).',
   ].join('\n'),
-  qualifyLead: [
-    'Records the chat of this agent session as a sales lead for the business owner (agent sessions).',
-    'Actions:',
-    '  - save: {chat_id, stage: "new"|"engaged"|"qualified"|"handed_off"|"closed", fields?: {name: value}} returns {saved: true, lead_id, stage, score: "pending"|"unscored"} or {saved: false, error}. Only the field names the owner set are kept (at most 5).',
-  ].join('\n'),
   followups: [
     'One message scheduled for later in this conversation: to the customer, or as a reminder to the owner (agent sessions).',
     'Actions:',
     '  - schedule: {chat_id, target: "chat"|"owner", text, in_minutes | send_at, keep_on_reply?, calendar_event_id?, calendar_id?} returns {scheduled: true, id, send_at, target} or {scheduled: false, error}.',
     '  - list: {chat_id} returns {followups: [{id, target, send_at, text}]} (pending only).',
     '  - cancel: {chat_id, followup_id} returns {cancelled: true} or {cancelled: false, error}.',
+  ].join('\n'),
+  flagAttention: [
+    'Flags the chat of this agent session as needing the business owner\'s attention (agent sessions).',
+    'Actions:',
+    '  - save: {chat_id, kind: "failed_order", summary} returns {flagged: true, item_id, new} or {flagged: false, error}. The summary is one or two plain sentences in your own words: never the customer\'s messages, never card or personal details.',
+  ].join('\n'),
+  qualifyLead: [
+    'Records the chat of this agent session as a sales lead for the business owner (agent sessions).',
+    'Actions:',
+    '  - save: {chat_id, stage: "new"|"engaged"|"qualified"|"handed_off"|"closed", fields?: {name: value}} returns {saved: true, lead_id, stage, score: "pending"|"unscored"} or {saved: false, error}. Only the field names the owner set are kept (at most 5).',
   ].join('\n'),
   voice: [
     'A message spoken as a WhatsApp voice note, sent into the chat (agent sessions).',
@@ -97,7 +114,7 @@ export const DEFAULT_TOOL_DESCRIPTIONS: Readonly<Record<UnsplitToolKey, string>>
     'Fields:',
     '  - trigger_chat_ids: chats whose incoming messages activate the agent; empty means only its schedule activates it. include_new_chats extends triggering to new chats.',
     '  - send_chat_ids: chats that receive the agent\'s replies; when omitted, replies go to the triggering chat.',
-    '  - read_message_chat_ids: chats whose messages the agent may read (read_all_messages: every chat).',
+    '  - read_message_chat_ids: chats whose messages the agent may read (read_all_messages: only the chat the run is answering, its own chat; other chats are read only when listed here).',
     '  - songs / images: media-reply switches — the agent may answer with audio / images in the chat it answers. Off by default; the agent can use one only while it is on.',
     '  - time_triggers: the agent\'s schedule, a list of {recurrence:{freq: hourly|daily|weekly|monthly, hour, minute, interval?, weekdays?, monthday?, timezone?}, source_chat_id, dest_chat_id?, prompt}. With freq=hourly, interval N fires every N hours from the hour anchor (one trigger covers every hour of the day).',
     '  - identity_prompt_upload_id: an uploaded file whose text becomes the agent\'s identity prompt (read server-side). knowledge_upload_ids: uploaded reference documents filed into its knowledge base.',
@@ -215,7 +232,7 @@ export const SPLIT_TOOL_DESCRIPTIONS: Readonly<Record<SplitToolKey, Readonly<Rec
       '  - get: one chat by chat_id.',
       '  - list_messages: messages of one chat (chat_id), of up to 25 chats (chat_ids, per-chat limit default 20, result {chats:[{chatId, messages, coverage, autoLoadedPages, total}]}), or across all chats when none is given. Filters: query (substring), query_any (matches if any term hits body, caption or filename), since/until (ISO 8601), message_types (e.g. ["document"]), mime (prefix, e.g. "image/"), filename_contains, has_media, sender. Messages may carry reactions [{emoji, senderId?, fromMe?, timestamp?}] (Chrome engine). Calls are in the timeline as type call_log with call {direction: in|out, media: voice|video, outcome: answered|missed|rejected|unknown, durationSec (answered), isGroup}; message_types ["call_log"] returns only calls. With since, older history is loaded automatically (bounded) before returning; autoLoadedPages and coverage.oldestLoadedIso report how far back it reached. deadline_ms (default 120000) bounds a batch; entries {skipped:true, reason:"deadline"} were not read.',
       '      coverage = {messagesScanned, truncated, indexOnly, oldestScannedIso}: truncated:true means the scan hit its cap and older matches may exist; indexOnly:true means only the WhatsApp search index was consulted (cold chats, captions and filenames not scanned); neither flag with an empty result means the scanned messages had no match.',
-      '  - get_media: {chat_id, key} downloads one message\'s media. Images up to 5 MiB return inline data_base64 (raw base64, no data: prefix) with mimetype; larger images and other media return a short-lived signed url. Also returns filename and original_quality (false when WhatsApp returned a preview).',
+      '  - get_media: {chat_id, key} downloads one message\'s media. Images up to 5 MiB return inline data_base64 (raw base64, no data: prefix) with mimetype; larger images and other media return a short-lived signed url. Also returns filename and original_quality (false when WhatsApp returned a preview). For an audio/voice message pass transcribe:true to also get transcript {status ok|silence|unavailable, text, language, durationMs, cached, creditsCharged, creditsRemaining}: 1 credit per started 2 minutes of audio, charged once per message (free on a repeat, silence or error); unavailable carries a reason (e.g. disabled, insufficient_credits) and the media is still returned.',
       '  - get_participants: members of a group chat.',
       '  - get_poll_results: {key, chat_id?} the votes of one poll; key = the poll message\'s waMessageKey._serialized (a poll_creation row from list_messages). Returns per-option voteCount and voters, and each voter\'s latest vote. A vote whose option could not be determined has decoded:false and is counted in undecodedVotes. Members who did not vote are the group\'s get_participants minus the voters.',
       'Message `key` = the message\'s waMessageKey._serialized from a list_messages row (not the bare message id, not a chat id).',
@@ -261,6 +278,11 @@ export const SPLIT_TOOL_DESCRIPTIONS: Readonly<Record<SplitToolKey, Readonly<Rec
  * can see. This is where the imperative "how to use it well" text lives now.
  */
 export const DEFAULT_TOOL_GUIDANCE: Readonly<Record<DefaultToolKey, string>> = {
+  boards: [
+    '- Before adding to a board, call list_boards and use the board of that kind; open a new board (create_board) only for a kind you do not have yet. create_board with the same kind always returns the same board.',
+    '- Status and priority are the exact labels create_board / get_board returned.',
+    '- When asked what is open, answer from list_items {active_only: true}.',
+  ].join('\n'),
   images: [
     '- In the instruction, say what to keep from the customer’s photo (face, body, pose, background) and exactly what to change, naming each image by its number.',
     '- After combine starts, tell the person the image is being made and will arrive in a minute or two; it is sent to the chat without any further step.',
@@ -275,17 +297,22 @@ export const DEFAULT_TOOL_GUIDANCE: Readonly<Record<DefaultToolKey, string>> = {
     '- Use it when you cannot finish a task because a tool or capability is missing or broken. Describe the capability, never the customer: no quotes, names, numbers or links.',
     '- Call it silently. Never tell the person in the chat that anything was reported, escalated or flagged (or that a report failed), whatever it returned; the result is internal. You may still say plainly that you cannot do the task.',
   ].join('\n'),
-  qualifyLead: [
-    '- Save a lead only for a possible customer of the business: never a support request, spam or a personal chat.',
-    '- Use the exact field names your instructions list; save again when the stage or a field changes (same lead).',
-    '- Call it silently: never mention leads, stages or scores in the chat.',
-  ].join('\n'),
   followups: [
     '- Schedule one only when the customer agreed to be contacted again or your instructions say to follow up. Write the finished message, in the customer’s language.',
     '- target "owner" is an internal reminder to the team (who the customer is, what to do); target "chat" goes to the customer.',
     '- If the customer writes before it is sent, it is cancelled by itself: it is a "if they have not answered" nudge. list before adding another; cancel one that is no longer wanted.',
     '- A reminder that must go out even if the customer writes: keep_on_reply true. One tied to a calendar booking: calendar_event_id (it is dropped if the event was deleted).',
     '- Never tell the customer a time you did not schedule: say it only after {scheduled: true}.',
+  ].join('\n'),
+  flagAttention: [
+    '- Flag only when the customer reports a failed order, payment or checkout and you have what happened.',
+    '- Flag once per problem: the same chat again only updates the summary.',
+    '- Call it silently: never mention flags or alerts in the chat.',
+  ].join('\n'),
+  qualifyLead: [
+    '- Save a lead only for a possible customer of the business: never a support request, spam or a personal chat.',
+    '- Use the exact field names your instructions list; save again when the stage or a field changes (same lead).',
+    '- Call it silently: never mention leads, stages or scores in the chat.',
   ].join('\n'),
   voice: [
     '- Use it when the customer sent a voice note or asked you to talk; otherwise answer in text.',

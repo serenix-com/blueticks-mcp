@@ -47,3 +47,21 @@ export interface AgentToolArgs {
   operator_chat_id?: string | null;
   enabled?: boolean;
 }
+
+// --- services/agent-attention/attention.types.ts ----------------------------
+export const ATTENTION_KINDS = ["failed_order"] as const;
+export type AttentionKind = (typeof ATTENTION_KINDS)[number];
+export const MAX_SUMMARY_CHARS = 500;
+
+// --- services/agent-attention/attention.ts ----------------------------------
+export type FlagAttentionOutcome =
+  | { flagged: true; item_id: string; new: boolean }
+  | { flagged: false; error: string };
+
+// --- bt-common/engine/deny-codes.ts -----------------------------------------
+export const POLICY_DENY_CODES = [
+  "window_closed_needs_template", "template_required", "template_not_approved", "template_params_invalid",
+  "recipient_kind_unsupported", "content_kind_unsupported", "media_too_large", "media_type_unsupported",
+  "opt_in_missing", "tier_limit_reached", "throughput_limited", "context_unavailable",
+  "not_my_sender", "sender_ambiguous",
+] as const;

@@ -37,10 +37,14 @@ const numberTargetShape = {
   fanout_limit: z
     .number()
     .int()
+    // .min(1), not .positive(): zod's openApi3 target renders .positive() as a boolean exclusiveMinimum, which the Anthropic API rejects.
     .min(1)
     .optional()
     .describe("With no number target, read at most this many of the account's numbers (default 5). Numbers over the cap are listed in skippedNumbers."),
 };
+
+// Single-object reads (a chat's messages, a media file, a history load) take the Number but no fan-out cap.
+const numberOnlyShape = { number: numberTargetShape.number };
 
 const ListArgs = z
   .object({
@@ -189,6 +193,7 @@ const ListMessagesArgs = z
     has_media: z.boolean().optional(),
     sender: z.string().min(1).max(128).optional(),
     ...engineTargetShape,
+    ...numberOnlyShape,
   })
   .strict();
 
@@ -207,7 +212,17 @@ const GetMediaArgs = z
         "The target message's waMessageKey._serialized (from a list_messages row), " +
           "e.g. 'false_972544325389@c.us_3EB0ABCDEF'. Not the bare id and not a chat_id.",
       ),
+    // #1920 — audio/voice messages only. Credit-metered (see the get_media description).
+    transcribe: z
+      .boolean()
+      .optional()
+      .describe(
+        "For an audio/voice message: also return its transcript as `transcript`. Costs credits " +
+          "(1 per started 2 minutes of audio; free if this message was already transcribed, silent, or failed). " +
+          "Omit for the media alone.",
+      ),
     ...engineTargetShape,
+    ...numberOnlyShape,
   })
   .strict();
 
@@ -258,6 +273,7 @@ const LoadMoreHistoryArgs = z
     // page back to a target depth ("go back a year") deterministically.
     until_date: z.union([z.string(), z.number()]).optional(),
     ...engineTargetShape,
+    ...numberOnlyShape,
   })
   .strict();
 
@@ -502,6 +518,8 @@ const chatsTool = {
     "        message_types— restrict to kinds, e.g. [\"document\"] for PDFs.",
     "                       [\"call_log\"] = only calls: each carries call",
     "                       {direction, media, outcome, durationSec?, isGroup}.",
+    "                       [\"vcard\",\"multi_vcard\"] = contact cards: each carries",
+    "                       contacts [{name, phones[], waId?}].",
     "        mime         — MIME prefix, e.g. \"application/pdf\" or \"image/\".",
     "        filename_contains, has_media, sender — narrow document/media hunts.",
     "      Result carries a `coverage` envelope: {messagesScanned, truncated,",
@@ -538,6 +556,12 @@ const chatsTool = {
     "      Body: {chat_id, key} where `key` is the message's",
     "      waMessageKey._serialized (from a list_messages row) — NOT the bare",
     "      message id and NOT a chat_id.",
+    "      Audio/voice messages: pass transcribe:true to also get `transcript`",
+    "      {status ok|silence|unavailable, text, language, durationMs, cached,",
+    "      creditsCharged, creditsRemaining}. Costs 1 credit per started 2 minutes",
+    "      of audio, charged once per message (free on a repeat, on silence, or on",
+    "      an error). status unavailable carries a `reason` (e.g. disabled,",
+    "      insufficient_credits); the media itself is still returned.",
     "  - get_participants: list the members of a group chat",
     "  - get_poll_results: who voted for which option in a poll. Body: {key, chat_id?}",
     "      where `key` is the poll message's waMessageKey._serialized (a poll_creation",
@@ -656,7 +680,7 @@ const chatsTool = {
       default: throw new Error("Unsupported tool action");
     }
   },
-  async dispatch(input: ChatsInput, client: BlueticksSurface): Promise<ToolResult> {
+  async dispatch(input: ChatsInput, client: Pick<BlueticksSurface, "chats">): Promise<ToolResult> {
     try {
       // Model-input hygiene: ids sometimes arrive with embedded JSON quotes —
       // normalize before any downstream strict validation.
@@ -706,11 +730,11 @@ const chatsTool = {
           data = await client.chats.get(input.chat_id, compact({ engine: input.engine, engine_id: input.engine_id, number: input.number, fanout_limit: input.fanout_limit }));
           break;
         case "list_messages": {
-          const { chat_id, chat_ids, deadline_ms, limit, cursor, mode, query, query_any, since, until, message_types, mime, filename_contains, has_media, sender, engine, engine_id } = input;
+          const { chat_id, chat_ids, deadline_ms, limit, cursor, mode, query, query_any, since, until, message_types, mime, filename_contains, has_media, sender, engine, engine_id, number } = input;
           // `deadline_ms` is deliberately NOT in perChat — it's a batch-level
           // wall-time budget; the single-chat v1 query schema (strict) would
           // reject it.
-          const perChat = compact({ limit, cursor, mode, query, query_any, since, until, message_types, mime, filename_contains, has_media, sender, engine, engine_id });
+          const perChat = compact({ limit, cursor, mode, query, query_any, since, until, message_types, mime, filename_contains, has_media, sender, engine, engine_id, number });
           // Batch fan-out: chat_ids[] wins when present. The backend loops the
           // chats sequentially (traffic-aware pacing) and returns {chats:[…]}
           // in one result.
@@ -768,7 +792,12 @@ const chatsTool = {
           data = await client.chats.getMedia(
             input.chat_id,
             input.key,
-            compact({ engine: input.engine, engine_id: input.engine_id }),
+            compact({
+              engine: input.engine,
+              engine_id: input.engine_id,
+              number: input.number,
+              transcribe: input.transcribe,
+            }),
           );
           break;
         case "get_participants":
@@ -780,7 +809,7 @@ const chatsTool = {
         case "load_more_history":
           data = await client.chats.loadOlderMessages(
             input.chat_id,
-            compact({ pages: input.pages, until_date: input.until_date, engine: input.engine, engine_id: input.engine_id }),
+            compact({ pages: input.pages, until_date: input.until_date, engine: input.engine, engine_id: input.engine_id, number: input.number }),
           );
           break;
         // The send_message_* `type` is fully determined by the action name, so

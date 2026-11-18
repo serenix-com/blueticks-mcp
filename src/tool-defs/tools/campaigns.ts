@@ -23,6 +23,13 @@ const CreateArgs = z
       .datetime({ offset: true })
       .optional()
       .describe("ISO 8601 with UTC offset. Start the campaign at this time instead of now; >=10s and <=365 days ahead."),
+    from: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .optional()
+      .describe("The account's WhatsApp number to send the whole campaign from: its phone (e.g. \"+15550001234\") or numberId. Must be one of the account's numbers. Omit for the default number."),
   })
   .strict();
 
@@ -48,7 +55,7 @@ const campaignsTool = {
     "Schedule audiences for paced bulk delivery, with pause/resume/cancel controls.",
     "Available actions:",
     "  - list: list campaigns",
-    "  - create: schedule a campaign against an audience (name + audience_id + optional text/media_url/on_missing_variable/send_at to schedule for later)",
+    "  - create: schedule a campaign against an audience (name + audience_id + optional text/media_url/on_missing_variable/send_at to schedule for later, from = the number to send from)",
     "  - get: retrieve a campaign by id",
     "  - pause / resume / cancel: control a running campaign",
     "",
@@ -74,7 +81,7 @@ const campaignsTool = {
     resume: {},
     cancel: { destructiveHint: true },
   },
-  async dispatch(input: CampaignsInput, client: BlueticksSurface): Promise<ToolResult> {
+  async dispatch(input: CampaignsInput, client: Pick<BlueticksSurface, "campaigns">): Promise<ToolResult> {
     try {
       let data: unknown;
       switch (input.action) {
@@ -96,6 +103,7 @@ const campaignsTool = {
               on_missing_variable: input.on_missing_variable,
             }),
             ...(input.send_at !== undefined && { send_at: input.send_at }),
+            ...(input.from !== undefined && { from: input.from }),
           });
           break;
         case "get":

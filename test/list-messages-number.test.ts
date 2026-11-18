@@ -18,7 +18,7 @@ async function readQuery(input: Record<string, unknown>): Promise<(k: string) =>
   const tool = findTool("chats_read");
   if (!tool) throw new Error("missing tool chats_read");
   await tool.dispatch(input, client);
-  const query = f.seen[0].query;
+  const query = f.seen[0]?.query ?? {};
   return (k) => query[k]?.[0];
 }
 
