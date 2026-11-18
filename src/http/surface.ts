@@ -158,11 +158,12 @@ function chats(http: HttpTransport): BlueticksChatsApi & { listAllMessages: NonN
     // BE#145: MCP callers get small images inlined as base64; plain REST gets a url only.
     getMedia: (chatId, key, opts) =>
       http.get(`/v1/messages/media/${seg(key)}`, { chatId, ...mapEngineTarget(opts), inline_base64: true }),
-    markRead: (chatId) => http.post(`/v1/chats/${seg(chatId)}/mark_read`),
-    react: (chatId, key, emoji) => http.post(`/v1/messages/reactions/${seg(key)}`, { emoji }, { query: { chatId } }),
-    getPollResults: (chatId, key) => http.get(`/v1/messages/poll_results/${seg(key)}`, { chatId }),
-    archive: (chatId) => http.post(`/v1/chats/${seg(chatId)}/archive`),
-    unarchive: (chatId) => http.post(`/v1/chats/${seg(chatId)}/unarchive`),
+    // #2106: a write that names its Number / engine rides it in the query (the backend pins the call to it).
+    markRead: (chatId, opts) => http.post(`/v1/chats/${seg(chatId)}/mark_read`, undefined, { query: mapEngineTarget(opts) }),
+    react: (chatId, key, emoji, opts) => http.post(`/v1/messages/reactions/${seg(key)}`, { emoji }, { query: { chatId, ...mapEngineTarget(opts) } }),
+    getPollResults: (chatId, key, opts) => http.get(`/v1/messages/poll_results/${seg(key)}`, { chatId, ...mapEngineTarget(opts) }),
+    archive: (chatId, opts) => http.post(`/v1/chats/${seg(chatId)}/archive`, undefined, { query: mapEngineTarget(opts) }),
+    unarchive: (chatId, opts) => http.post(`/v1/chats/${seg(chatId)}/unarchive`, undefined, { query: mapEngineTarget(opts) }),
     batchMessageAcks: (body) => http.post("/v1/messages/acks", mapBatchAcksBody(body)),
     listParticipants: (chatId, opts) => http.get(`/v1/chats/${seg(chatId)}/participants`, mapEngineTarget(opts)),
     loadOlderMessages: (chatId, opts) =>
@@ -202,7 +203,7 @@ function groups(http: HttpTransport): BlueticksGroupsApi {
       await http.patch(`/v1/groups/${seg(groupId)}`, body);
       return http.get(`/v1/groups/${seg(groupId)}`);
     },
-    leave: (groupId) => http.delete(`/v1/groups/${seg(groupId)}/members/me`),
+    leave: (groupId, target) => http.delete(`/v1/groups/${seg(groupId)}/members/me`, mapEngineTarget(target)),
     getPicture: (groupId) => http.get(`/v1/groups/${seg(groupId)}/picture`),
     setPicture: (groupId, body) => http.put(`/v1/groups/${seg(groupId)}/picture`, body),
     removePicture: (groupId) => http.delete(`/v1/groups/${seg(groupId)}/picture`),

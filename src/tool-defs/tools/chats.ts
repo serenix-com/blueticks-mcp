@@ -197,7 +197,20 @@ const ListMessagesArgs = z
   })
   .strict();
 
-const MarkReadArgs = z.object({ chat_id: ChatId }).strict();
+// #2106: a chat write (mark_read, react, archive, unarchive) and get_poll_results act on ONE Number's engine. Name it with
+// `number` (numberId or E.164 phone) or `engine` / `engine_id`; with none, the default engine answers as before.
+const writeTargetShape = {
+  ...engineTargetShape,
+  number: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .optional()
+    .describe("Act on one of this account's WhatsApp numbers, by its numberId or E.164 phone. 404 NUMBER_NOT_FOUND if it is not this account's; 409 NUMBER_OFFLINE if it has no engine online."),
+};
+
+const MarkReadArgs = z.object({ chat_id: ChatId, ...writeTargetShape }).strict();
 
 const GetMediaArgs = z
   .object({
@@ -242,6 +255,7 @@ const ReactArgs = z
       .string()
       .max(32)
       .describe("The emoji to react with. Pass an empty string \"\" to CLEAR your existing reaction."),
+    ...writeTargetShape,
   })
   .strict();
 
@@ -256,6 +270,7 @@ const GetPollResultsArgs = z
         "The poll message's waMessageKey._serialized (a poll_creation row from list_messages), " +
           "e.g. 'true_120363000000000000@g.us_3EB0ABCDEF_972500000000@c.us'.",
       ),
+    ...writeTargetShape,
   })
   .strict();
 
@@ -277,9 +292,9 @@ const LoadMoreHistoryArgs = z
   })
   .strict();
 
-const ArchiveArgs = z.object({ chat_id: ChatId }).strict();
+const ArchiveArgs = z.object({ chat_id: ChatId, ...writeTargetShape }).strict();
 
-const UnarchiveArgs = z.object({ chat_id: ChatId }).strict();
+const UnarchiveArgs = z.object({ chat_id: ChatId, ...writeTargetShape }).strict();
 
 // send_message body — discriminated union mirroring SendInChatRequest on
 // the backend (which is SendMessageRequest minus `to` and `send_at`).
@@ -407,6 +422,12 @@ type ChatsInput =
   | ({ action: "send_message_media" } & z.infer<typeof SendMessageMediaArgs>)
   | ({ action: "send_message_poll" } & z.infer<typeof SendMessagePollArgs>)
   | ({ action: "send_button_reply" } & z.infer<typeof SendButtonReplyArgs>);
+
+/** The engine / Number a chat write names, as the trailing argument: none when it names none (the call is unchanged). */
+function writeTarget(a: { engine?: 'gateway' | 'regular'; engine_id?: string; number?: string }): [] | [{ engine?: 'gateway' | 'regular'; engine_id?: string; number?: string }] {
+  const t = compact({ engine: a.engine, engine_id: a.engine_id, number: a.number });
+  return Object.keys(t).length === 0 ? [] : [t];
+}
 
 interface LimitClamped { requested: number; applied: number; max: number; howToPage: string }
 
@@ -774,19 +795,19 @@ const chatsTool = {
           break;
         }
         case "mark_read":
-          data = await client.chats.markRead(input.chat_id);
+          data = await client.chats.markRead(input.chat_id, ...writeTarget(input));
           break;
         case "react":
-          data = await client.chats.react(input.chat_id, input.key, input.emoji);
+          data = await client.chats.react(input.chat_id, input.key, input.emoji, ...writeTarget(input));
           break;
         case "get_poll_results":
-          data = await client.chats.getPollResults(input.chat_id, input.key);
+          data = await client.chats.getPollResults(input.chat_id, input.key, ...writeTarget(input));
           break;
         case "archive":
-          data = await client.chats.archive(input.chat_id);
+          data = await client.chats.archive(input.chat_id, ...writeTarget(input));
           break;
         case "unarchive":
-          data = await client.chats.unarchive(input.chat_id);
+          data = await client.chats.unarchive(input.chat_id, ...writeTarget(input));
           break;
         case "get_media":
           data = await client.chats.getMedia(

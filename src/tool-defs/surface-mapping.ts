@@ -90,9 +90,9 @@ export function mapListMessagesQuery(a: ListMessagesArgs = {}): Record<string, u
   });
 }
 
-export interface ListContactsArgs { query?: string; limit?: number; cursor?: string; }
+export interface ListContactsArgs extends EngineTargetArgs { query?: string; limit?: number; cursor?: string; }
 export function mapListContactsQuery(a: ListContactsArgs = {}): Record<string, unknown> {
-  return compact({ searchToken: a.query, limit: a.limit, skip: cursorToSkip(a.cursor) });
+  return compact({ searchToken: a.query, limit: a.limit, skip: cursorToSkip(a.cursor), ...mapEngineTarget(a) });
 }
 
 export interface LoadOlderArgs { pages?: number; until_date?: string | number; }

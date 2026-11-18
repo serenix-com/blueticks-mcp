@@ -201,15 +201,15 @@ export interface BlueticksChatsApi {
     // transcribe (#1920): for an audio message, also return the transcript (credit-metered, see mcp/services/media-transcription.ts).
     opts?: { engine?: 'gateway' | 'regular'; engine_id?: string; number?: string; transcribe?: boolean },
   ): Promise<unknown>;
-  markRead(chatId: string): Promise<unknown>;
+  markRead(chatId: string, opts?: ChatWriteTarget): Promise<unknown>;
   // BE#844 — react to a message; emoji "" clears. POST /v1/messages/reactions/{key}?chatId=.
-  react(chatId: string, key: string, emoji: string): Promise<unknown>;
+  react(chatId: string, key: string, emoji: string, opts?: ChatWriteTarget): Promise<unknown>;
   // A poll's current votes (who voted for which option). GET /v1/messages/poll_results/{key}?chatId=.
-  getPollResults(chatId: string | undefined, key: string): Promise<unknown>;
+  getPollResults(chatId: string | undefined, key: string, opts?: ChatWriteTarget): Promise<unknown>;
   // Archive / unarchive a chat — hide it from / restore it to the main chat
   // list. Maps to POST /v1/chats/{id}/archive | /unarchive.
-  archive(chatId: string): Promise<unknown>;
-  unarchive(chatId: string): Promise<unknown>;
+  archive(chatId: string, opts?: ChatWriteTarget): Promise<unknown>;
+  unarchive(chatId: string, opts?: ChatWriteTarget): Promise<unknown>;
   batchMessageAcks(body: { message_keys: string[] }): Promise<unknown>;
   // Method names track the blueticks SDK (v3.4.x renamed
   // `getParticipants` → `listParticipants`, `loadMoreHistory` →
@@ -236,8 +236,11 @@ export interface BlueticksChatsApi {
   sendMessage(chatId: string, body: Record<string, unknown>, opts?: { idempotencyKey?: string }): Promise<unknown>;
 }
 
+/** #2106: the engine / Number a chat write acts on (a numberId or E.164 phone in `number`). */
+export interface ChatWriteTarget { engine?: 'gateway' | 'regular'; engine_id?: string; number?: string }
+
 export interface BlueticksContactsApi {
-  list(params: { limit?: number; cursor?: string; query?: string }): Promise<unknown>;
+  list(params: { limit?: number; cursor?: string; query?: string; engine?: 'gateway' | 'regular'; engine_id?: string; number?: string; fanout_limit?: number }): Promise<unknown>;
   getProfilePicture(chatId: string): Promise<unknown>;
 }
 
@@ -275,7 +278,7 @@ export interface BlueticksGroupsApi {
    * doesn't expose a "destroy group" semantic — the group continues to
    * exist for any remaining members; only this user's membership ends.
    */
-  leave(groupId: string): Promise<unknown>;
+  leave(groupId: string, target?: { engine?: string; engine_id?: string; number?: string }): Promise<unknown>;
   /** The group's current picture: `{ url }` (short-lived WhatsApp CDN url, null when none). */
   getPicture(groupId: string): Promise<unknown>;
   /** Set the picture from an https `url` or a `fileDataUrl` (data: URL). Admins only on admins-only-edit groups. */

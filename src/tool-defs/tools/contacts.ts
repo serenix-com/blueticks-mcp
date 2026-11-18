@@ -9,6 +9,11 @@ const ListArgs = z
     query: z.string().optional(),
     limit: z.number().int().min(1).max(200).optional(),
     cursor: z.string().optional(),
+    // #2106: read one of the account's WhatsApp numbers (numberId or E.164 phone) / one engine, instead of every number.
+    engine: z.enum(["gateway", "regular"]).optional().describe("Read one engine TYPE: gateway (server-side pod) or regular (browser extension)."),
+    engine_id: z.string().min(1).max(200).optional().describe("Exact engine clientId (from engine status `id`); wins over `engine`."),
+    number: z.string().trim().min(1).max(32).optional().describe("Read one of this account's WhatsApp numbers, by its numberId or E.164 phone. 404 NUMBER_NOT_FOUND if it is not this account's."),
+    fanout_limit: z.number().int().min(1).optional().describe("With no number target, read at most this many of the account's numbers (default 5)."),
   })
   .strict();
 
